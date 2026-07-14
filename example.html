@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShivamGuide — quick test</title>
+  <link rel="stylesheet" href="./shivam-guide.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    #cta { padding: 0.75rem 1.25rem; background: #0d7a70; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1 id="brand">ShivamGuide test</h1>
+  <p>Open this file over HTTP (not file://). Or run any static server in this folder.</p>
+  <button type="button" id="cta">Primary action</button>
+  <p><button type="button" id="replay">Replay tour</button></p>
+
+  <script src="./shivam-guide.js"></script>
+  <script>
+    (async () => {
+      const tour = await ShivamGuide.create({
+        modelUrl:
+          "https://cdn.jsdelivr.net/gh/evrstr/live2d-widget-models/live2d_evrstr/natori/model.json",
+        speaker: "Guide",
+        autoStart: true,
+        steps: [
+          { target: "#brand", line: "ShivamGuide is alive. Peers loaded themselves.", pose: 0, face: "smile" },
+          { target: "#cta", line: "Point steps at any CSS selector on your page.", pose: 2, face: "look", nextLabel: "Done" },
+        ],
+      });
+      document.getElementById("replay").onclick = () => tour.start();
+    })();
+  </script>
+</body>
+</html>

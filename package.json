@@ -1,0 +1,60 @@
+{
+  "name": "shivam-guide",
+  "version": "1.1.0",
+  "description": "ShivamGuide — drop-in Live2D onboarding tour (spotlight, dialogue, poses) for any website or React/Next app.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./shivam-guide.js",
+  "module": "./shivam-guide.js",
+  "types": "./shivam-guide.d.ts",
+  "exports": {
+    ".": {
+      "types": "./shivam-guide.d.ts",
+      "default": "./shivam-guide.js"
+    },
+    "./shivam-guide.css": "./shivam-guide.css",
+    "./shivam-guide.js": "./shivam-guide.js",
+    "./react": {
+      "types": "./react.d.ts",
+      "default": "./react.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "shivam-guide.js",
+    "shivam-guide.css",
+    "shivam-guide.d.ts",
+    "react.js",
+    "react.d.ts",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./shivam-guide.js",
+    "./shivam-guide.css"
+  ],
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "shivam-guide",
+    "ShivamGuide",
+    "live2d",
+    "onboarding",
+    "tour",
+    "react",
+    "nextjs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shivamtpss/tt.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shivamtpss/tt/issues"
+  },
+  "homepage": "https://github.com/shivamtpss/tt#readme"
+}
