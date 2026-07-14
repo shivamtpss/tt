@@ -103,6 +103,9 @@
   function createRoot(opts) {
     const root = document.createElement("div");
     root.className = "sg-root";
+    if (typeof window !== "undefined" && window.innerWidth < 640) {
+      root.classList.add("sg-mobile");
+    }
     root.hidden = true;
     root.setAttribute("aria-live", "polite");
     root.innerHTML = `
@@ -257,20 +260,97 @@
 
     function fitModel() {
       if (!model || !app) return;
-      const w = app.screen.width;
-      const h = app.screen.height;
+      const w = Math.max(app.screen.width, 1);
+      const h = Math.max(app.screen.height, 1);
+      const mobile = window.innerWidth < 640;
       model.anchor.set(0.5, 0.5);
-      const scale = Math.min(w / model.width, h / model.height) * 1.15;
-      model.scale.set(scale);
-      model.x = w * 0.5;
-      model.y = h * 0.62;
+      // Always reset so repeated fits don't compound
+      model.scale.set(1);
+
+      if (mobile) {
+        // Bust frame: oversize the model so legs crop at the BOTTOM.
+        // Keep full head in frame (nudge y down if hair clips).
+        const naturalH = Math.max(model.height, 1);
+        const naturalW = Math.max(model.width, 1);
+        const scale = Math.max((h * 2.45) / naturalH, (w * 1.2) / naturalW);
+        model.scale.set(scale);
+        model.x = w * 0.5;
+        const drawnH = model.height;
+        // Slightly below half-center → face/hair fully inside, waist+ crop out
+        model.y = drawnH < h ? h * 0.55 : drawnH * 0.44;
+      } else {
+        const scale = Math.min(w / model.width, h / model.height) * 1.15;
+        model.scale.set(scale);
+        model.x = w * 0.5;
+        model.y = h * 0.62;
+      }
+    }
+
+    /** Resize Pixi to the real CSS box, then re-fit the bust (esp. after un-hiding). */
+    function syncCanvasSize() {
+      if (!app || destroyed) return false;
+      const cw = canvasWrap.clientWidth;
+      const ch = canvasWrap.clientHeight;
+      if (cw < 8 || ch < 8) return false;
+      app.renderer.resize(cw, ch);
+      fitModel();
+      return true;
+    }
+
+    function afterLayout(fn) {
+      requestAnimationFrame(() => requestAnimationFrame(fn));
+    }
+
+    function isMobile() {
+      return window.innerWidth < 640;
+    }
+
+    /** Keep spotlight targets above the bottom sheet on phones */
+    function sheetReservePx() {
+      if (!isMobile()) return 24;
+      const stageH = stage.offsetHeight || Math.min(window.innerHeight * 0.36, 200);
+      return stageH + 20;
+    }
+
+    function scrollTargetIntoSafeView(el) {
+      const reserve = sheetReservePx();
+      const padTop = 16;
+      const r = el.getBoundingClientRect();
+      const safeBottom = window.innerHeight - reserve;
+      // Need room for the spotlight ring + padding, not just bare rect
+      const ring = 16;
+      const fullyVisible =
+        r.top - ring >= padTop && r.bottom + ring <= safeBottom;
+      if (fullyVisible) return;
+
+      // Place target in the upper portion of the *safe* band (above the sheet)
+      const safeH = Math.max(100, safeBottom - padTop);
+      const desiredTop = padTop + Math.min(r.height * 0.1, safeH * 0.2);
+      const delta = r.top - desiredTop;
+      // Prefer scrolling the document element (works even when body locks on desktop)
+      const scroller = document.scrollingElement || document.documentElement;
+      scroller.scrollBy({ top: delta, behavior: "smooth" });
+    }
+
+    function dockMobileSheet() {
+      root.classList.add("sg-mobile");
+      stage.classList.remove("sg-facing-left", "sg-stack");
+      stage.style.left = "0px";
+      stage.style.right = "0px";
+      stage.style.bottom = "0px";
+      stage.style.top = "auto";
+      hopGuide();
     }
 
     async function initModel() {
       const { Live2DModel } = PIXI.live2d;
+      // Root starts hidden → clientWidth is 0. Seed with CSS-intended size.
+      const mobile = isMobile();
+      const seedW = mobile ? 100 : canvasWrap.clientWidth || 180;
+      const seedH = mobile ? 148 : canvasWrap.clientHeight || 260;
       app = new PIXI.Application({
-        width: canvasWrap.clientWidth || 180,
-        height: canvasWrap.clientHeight || 260,
+        width: seedW,
+        height: seedH,
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
@@ -299,8 +379,7 @@
 
     function onResize() {
       if (!app || destroyed) return;
-      app.renderer.resize(canvasWrap.clientWidth, canvasWrap.clientHeight);
-      fitModel();
+      syncCanvasSize();
       if (active) syncLayout(opts.steps[stepIndex]);
     }
 
@@ -473,6 +552,14 @@
     }
 
     function placeGuideDefault() {
+      if (isMobile()) {
+        dockMobileSheet();
+        afterLayout(() => {
+          syncCanvasSize();
+        });
+        return;
+      }
+      root.classList.remove("sg-mobile");
       stage.classList.remove("sg-facing-left", "sg-stack");
       const margin = 12;
       const w = stage.offsetWidth || 480;
@@ -481,7 +568,10 @@
       const top = clamp(window.innerHeight - h - 24, margin, window.innerHeight - h - margin);
       stage.style.left = `${left}px`;
       stage.style.top = `${top}px`;
+      stage.style.bottom = "";
+      stage.style.right = "";
       hopGuide();
+      afterLayout(() => syncCanvasSize());
     }
 
     function placeGuideNear(el) {
@@ -489,9 +579,27 @@
       const gap = 14;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const narrow = vw < 640;
-      stage.classList.toggle("sg-stack", narrow);
-      const sw = stage.offsetWidth || (narrow ? 340 : 500);
+
+      // Phones: dock sheet at bottom; keep spotlight clear above it
+      if (isMobile()) {
+        dockMobileSheet();
+        scrollTargetIntoSafeView(el);
+        lookAtTarget(el);
+        afterLayout(() => {
+          syncCanvasSize();
+          lookAtTarget(el);
+        });
+        setTimeout(() => {
+          scrollTargetIntoSafeView(el);
+          lookAtTarget(el);
+          syncCanvasSize();
+        }, 300);
+        return;
+      }
+
+      root.classList.remove("sg-mobile");
+      stage.classList.toggle("sg-stack", false);
+      const sw = stage.offsetWidth || 500;
       const sh = stage.offsetHeight || 240;
       const r = el.getBoundingClientRect();
 
@@ -504,7 +612,7 @@
       let top;
       let faceLeft = false;
 
-      if (!narrow && spaceBelow < sh + gap && spaceAbove < sh + gap) {
+      if (spaceBelow < sh + gap && spaceAbove < sh + gap) {
         if (spaceLeft >= sw + gap || spaceLeft > spaceRight) {
           left = r.left - sw - gap;
           top = clamp(r.top + r.height / 2 - sh / 2, margin, vh - sh - margin);
@@ -526,12 +634,12 @@
       stage.classList.toggle("sg-facing-left", faceLeft);
       stage.style.left = `${clamp(left, margin, vw - sw - margin)}px`;
       stage.style.top = `${clamp(top, margin, vh - sh - margin)}px`;
+      stage.style.bottom = "";
+      stage.style.right = "";
       hopGuide();
       lookAtTarget(el);
-      requestAnimationFrame(() => {
-        if (!app) return;
-        app.renderer.resize(canvasWrap.clientWidth, canvasWrap.clientHeight);
-        fitModel();
+      afterLayout(() => {
+        syncCanvasSize();
         lookAtTarget(el);
       });
     }
@@ -547,16 +655,29 @@
 
     function measureAndPlace(el) {
       const pad = 12;
-      const r = el.getBoundingClientRect();
-      spotlight.style.top = `${Math.max(8, r.top - pad)}px`;
-      spotlight.style.left = `${Math.max(8, r.left - pad)}px`;
-      spotlight.style.width = `${r.width + pad * 2}px`;
-      spotlight.style.height = `${r.height + pad * 2}px`;
-      spotlight.style.opacity = "1";
-      spotlight.classList.add("sg-visible");
-      el.classList.add("sg-target");
-      lastTarget = el;
-      placeGuideNear(el);
+      // On mobile, scroll first so spotlight isn't under the sheet
+      if (isMobile()) {
+        dockMobileSheet();
+        scrollTargetIntoSafeView(el);
+      }
+
+      const apply = () => {
+        const r = el.getBoundingClientRect();
+        spotlight.style.top = `${Math.max(8, r.top - pad)}px`;
+        spotlight.style.left = `${Math.max(8, r.left - pad)}px`;
+        spotlight.style.width = `${r.width + pad * 2}px`;
+        spotlight.style.height = `${r.height + pad * 2}px`;
+        spotlight.style.opacity = "1";
+        spotlight.classList.add("sg-visible");
+        el.classList.add("sg-target");
+        lastTarget = el;
+        placeGuideNear(el);
+      };
+
+      apply();
+      if (isMobile()) {
+        setTimeout(apply, 320);
+      }
     }
 
     function syncLayout(step) {
@@ -586,7 +707,12 @@
         placeGuideDefault();
         return;
       }
-      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (isMobile()) {
+        dockMobileSheet();
+        scrollTargetIntoSafeView(el);
+      } else {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
       setTimeout(() => {
         measureAndPlace(el);
         requestAnimationFrame(() => measureAndPlace(el));
@@ -671,8 +797,13 @@
       document.body.classList.add("sg-active");
       canvasWrap.classList.remove("sg-exit");
       active = true;
-      placeGuideDefault();
-      showStep(0);
+      if (isMobile()) dockMobileSheet();
+      // Un-hiding changes layout; re-fit bust after CSS paints
+      afterLayout(() => {
+        syncCanvasSize();
+        placeGuideDefault();
+        showStep(0);
+      });
       opts.onStart?.();
     }
 

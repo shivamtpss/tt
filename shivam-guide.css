@@ -11,6 +11,15 @@ body.sg-active {
   overflow: hidden;
 }
 
+/* Phones: allow programmatic (and brief user) scroll so spotlight
+   targets can sit above the bottom sheet instead of hiding under it */
+@media (max-width: 640px) {
+  body.sg-active {
+    overflow: auto;
+    overscroll-behavior: none;
+  }
+}
+
 .sg-root {
   position: fixed;
   inset: 0;
@@ -103,17 +112,6 @@ body.sg-active {
   transform: scaleX(-1);
 }
 
-@media (max-width: 640px) {
-  .sg-stage {
-    width: min(340px, calc(100vw - 16px));
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .sg-guide {
-    align-self: center;
-  }
-}
-
 .sg-guide {
   pointer-events: auto;
   flex: 0 0 auto;
@@ -124,8 +122,104 @@ body.sg-active {
   position: relative;
   width: 100%;
   height: min(260px, 38vh);
+  overflow: hidden; /* crop model inside the box */
   filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55));
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/*
+ * Mobile: compact bottom bar
+ * - Character LEFT (bust: face in frame, legs cropped at bottom of canvas)
+ * - Dialogue RIGHT (doesn't stack under a giant full-body figure)
+ * - Reserved height so spotlight targets stay in the clear area above
+ */
+@media (max-width: 640px) {
+  .sg-root {
+    /* Enough room for bust + dialogue actions above the home indicator */
+    --sg-sheet-h: min(210px, 38vh);
+  }
+
+  .sg-stage,
+  .sg-root.sg-mobile .sg-stage {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0.35rem;
+    padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    background: linear-gradient(to top, rgba(2, 6, 12, 0.72), rgba(2, 6, 12, 0.35) 55%, transparent);
+    z-index: 5;
+  }
+
+  .sg-guide {
+    flex: 0 0 100px;
+    width: 100px;
+    align-self: flex-end;
+  }
+
+  .sg-canvas {
+    /* Bust box: face in frame; feet crop via fitModel */
+    height: 148px;
+    width: 100px;
+    margin: 0;
+  }
+
+  /* Helps native scrollIntoView keep targets clear of the sheet */
+  .sg-target {
+    scroll-margin-bottom: calc(var(--sg-sheet-h) + 28px);
+    scroll-margin-top: 20px;
+  }
+
+  .sg-dialogue {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    max-height: none;
+    overflow-y: visible;
+    padding: 0.65rem 0.75rem 0.7rem;
+    border-radius: 14px;
+  }
+
+  .sg-text {
+    font-size: 0.9rem;
+    min-height: 2.4em;
+    margin-bottom: 0.55rem;
+    line-height: 1.4;
+  }
+
+  .sg-actions {
+    justify-content: stretch;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .sg-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+    padding: 0.55rem 0.5rem;
+    font-size: 0.82rem;
+  }
+
+  .sg-btn-primary {
+    flex: 1.35 1 auto;
+  }
+
+  /* No mirror flip on phones — saves space/confusion */
+  .sg-stage.sg-facing-left .sg-canvas {
+    transform: none;
+  }
+
+  .sg-stage.sg-facing-left.sg-pop .sg-canvas {
+    animation: sg-hop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 .sg-stage.sg-pop .sg-canvas {
