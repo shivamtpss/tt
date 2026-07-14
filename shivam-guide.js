@@ -100,6 +100,38 @@
     return Object.assign({}, a, b);
   }
 
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(
+      /[&<>"']/g,
+      (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+    );
+  }
+
+  /** Apply theme colors + tunables to the root element as CSS variables. */
+  function applyTheme(root, opts) {
+    const t = opts.theme || {};
+    const varMap = {
+      accent: "--sg-accent",
+      ring: "--sg-ring",
+      dim: "--sg-dim",
+      speaker: "--sg-speaker",
+      speakerColor: "--sg-speaker",
+      font: "--sg-font",
+      dialogueBg: "--sg-dialogue-bg",
+      textColor: "--sg-text",
+      primary: "--sg-primary",
+      primaryText: "--sg-primary-text",
+      radius: "--sg-radius",
+    };
+    for (const key in varMap) {
+      if (t[key] != null) root.style.setProperty(varMap[key], String(t[key]));
+    }
+    if (opts.spotlightRadius != null) {
+      root.style.setProperty("--sg-radius", `${opts.spotlightRadius}px`);
+    }
+  }
+
   function createRoot(opts) {
     const root = document.createElement("div");
     root.className = "sg-root";
@@ -108,6 +140,9 @@
     }
     root.hidden = true;
     root.setAttribute("aria-live", "polite");
+    const progress = opts.showProgress
+      ? '<div class="sg-progress"><div class="sg-progress-bar" data-sg="progress"></div></div>'
+      : "";
     root.innerHTML = `
       <div class="sg-spotlight" data-sg="spotlight"></div>
       <div class="sg-hitblock" data-sg="hitblock" aria-hidden="true"></div>
@@ -120,20 +155,23 @@
         <div class="sg-dialogue">
           <div class="sg-meta">
             <div class="sg-speaker-block">
-              <span class="sg-speaker" data-sg="speaker">${opts.speaker}</span>
+              <span class="sg-speaker" data-sg="speaker">${escapeHtml(opts.speaker)}</span>
               <span class="sg-tag" data-sg="tag">pose</span>
             </div>
             <span class="sg-pill" data-sg="pill">1 / 1</span>
           </div>
+          ${progress}
           <p class="sg-text" data-sg="text"></p>
           <div class="sg-actions">
-            ${opts.showPoseReplay ? '<button type="button" class="sg-btn sg-btn-ghost" data-sg="pose">Replay pose</button>' : ""}
-            ${opts.showSkip ? '<button type="button" class="sg-btn sg-btn-ghost" data-sg="skip">Skip</button>' : ""}
+            <span class="sg-hint" data-sg="hint" hidden>${escapeHtml(opts.clickHint || "Tap the highlighted area")}</span>
+            ${opts.showPoseReplay ? `<button type="button" class="sg-btn sg-btn-ghost" data-sg="pose">${escapeHtml(opts.poseReplayLabel || "Replay pose")}</button>` : ""}
+            ${opts.showSkip ? `<button type="button" class="sg-btn sg-btn-ghost" data-sg="skip">${escapeHtml(opts.skipLabel || "Skip")}</button>` : ""}
             <button type="button" class="sg-btn sg-btn-primary" data-sg="next">Next</button>
           </div>
         </div>
       </div>
     `;
+    applyTheme(root, opts);
     (opts.mount || document.body).appendChild(root);
     return root;
   }
@@ -148,21 +186,48 @@
         autoStart: true,
         showPoseReplay: true,
         showSkip: true,
+        showProgress: false,
         lipSync: true,
         loadPeers: true,
         mount: null,
         storageKey: null,
         zIndex: 9999,
+        // --- Customization ---
+        theme: null,
+        typeSpeedMs: 18,
+        spotlightPadding: 12,
+        spotlightRadius: null,
+        keyboard: true,
+        advanceOnClick: false,
+        clickHint: "Tap the highlighted area",
+        reduceMotion: "auto",
+        mobileScale: 1,
+        desktopScale: 1,
+        skipLabel: "Skip",
+        doneLabel: "Done",
+        nextLabel: null,
+        poseReplayLabel: "Replay pose",
+        // --- Callbacks ---
         onStart: null,
         onStep: null,
+        onBeforeStep: null,
         onComplete: null,
         onSkip: null,
+        onEnd: null,
       },
       userOptions || {}
     );
 
     if (!opts.modelUrl) throw new Error("ShivamGuide: modelUrl is required");
     if (!opts.steps?.length) throw new Error("ShivamGuide: steps[] is required");
+
+    const prefersReduced =
+      typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        : false;
+    const reduceMotion =
+      opts.reduceMotion === true ||
+      (opts.reduceMotion === "auto" && prefersReduced);
     if (opts.loadPeers !== false) {
       await ensurePeers();
     }
@@ -202,6 +267,8 @@
     const btnNext = $("next");
     const btnSkip = $("skip");
     const btnPose = $("pose");
+    const progressEl = $("progress");
+    const hintEl = $("hint");
 
     speakerEl.textContent = opts.speaker;
 
@@ -215,6 +282,7 @@
     let gimmickTimers = [];
     let lipTalking = false;
     let paramOverrides = Object.create(null);
+    let overrideKeys = [];
     let active = false;
     let destroyed = false;
 
@@ -232,6 +300,7 @@
     }
 
     function holdParam(id, value) {
+      if (!(id in paramOverrides)) overrideKeys.push(id);
       paramOverrides[id] = value;
       setParam(id, value);
     }
@@ -239,9 +308,11 @@
     function releaseParams(...ids) {
       if (!ids.length) {
         paramOverrides = Object.create(null);
+        overrideKeys = [];
         return;
       }
       ids.forEach((id) => delete paramOverrides[id]);
+      overrideKeys = Object.keys(paramOverrides);
     }
 
     function clearGimmicks() {
@@ -272,26 +343,39 @@
         // Keep full head in frame (nudge y down if hair clips).
         const naturalH = Math.max(model.height, 1);
         const naturalW = Math.max(model.width, 1);
-        const scale = Math.max((h * 2.45) / naturalH, (w * 1.2) / naturalW);
+        const scale =
+          Math.max((h * 2.45) / naturalH, (w * 1.2) / naturalW) *
+          (opts.mobileScale || 1);
         model.scale.set(scale);
         model.x = w * 0.5;
         const drawnH = model.height;
         // Slightly below half-center → face/hair fully inside, waist+ crop out
         model.y = drawnH < h ? h * 0.55 : drawnH * 0.44;
       } else {
-        const scale = Math.min(w / model.width, h / model.height) * 1.15;
+        const scale =
+          Math.min(w / model.width, h / model.height) * 1.15 * (opts.desktopScale || 1);
         model.scale.set(scale);
         model.x = w * 0.5;
         model.y = h * 0.62;
       }
     }
 
+    let hopCooldownUntil = 0;
+    let resizeTimer = null;
+    let placeTimer = null;
+    let lastCanvasW = 0;
+    let lastCanvasH = 0;
+    let mobileDocked = false;
+
     /** Resize Pixi to the real CSS box, then re-fit the bust (esp. after un-hiding). */
-    function syncCanvasSize() {
+    function syncCanvasSize(force = false) {
       if (!app || destroyed) return false;
       const cw = canvasWrap.clientWidth;
       const ch = canvasWrap.clientHeight;
       if (cw < 8 || ch < 8) return false;
+      if (!force && cw === lastCanvasW && ch === lastCanvasH) return false;
+      lastCanvasW = cw;
+      lastCanvasH = ch;
       app.renderer.resize(cw, ch);
       fitModel();
       return true;
@@ -317,29 +401,42 @@
       const padTop = 16;
       const r = el.getBoundingClientRect();
       const safeBottom = window.innerHeight - reserve;
-      // Need room for the spotlight ring + padding, not just bare rect
       const ring = 16;
       const fullyVisible =
         r.top - ring >= padTop && r.bottom + ring <= safeBottom;
       if (fullyVisible) return;
 
-      // Place target in the upper portion of the *safe* band (above the sheet)
       const safeH = Math.max(100, safeBottom - padTop);
       const desiredTop = padTop + Math.min(r.height * 0.1, safeH * 0.2);
       const delta = r.top - desiredTop;
-      // Prefer scrolling the document element (works even when body locks on desktop)
+      // Ignore tiny drift — prevents address-bar scroll/resize thrash
+      if (Math.abs(delta) < 12) return;
       const scroller = document.scrollingElement || document.documentElement;
       scroller.scrollBy({ top: delta, behavior: "smooth" });
     }
 
-    function dockMobileSheet() {
+    function dockMobileSheet({ hop = false } = {}) {
       root.classList.add("sg-mobile");
       stage.classList.remove("sg-facing-left", "sg-stack");
       stage.style.left = "0px";
       stage.style.right = "0px";
       stage.style.bottom = "0px";
       stage.style.top = "auto";
-      hopGuide();
+      mobileDocked = true;
+      if (hop) hopGuide(true);
+    }
+
+    function updateSpotlightRect(el) {
+      const pad = opts.spotlightPadding ?? 12;
+      const r = el.getBoundingClientRect();
+      spotlight.style.top = `${Math.max(8, r.top - pad)}px`;
+      spotlight.style.left = `${Math.max(8, r.left - pad)}px`;
+      spotlight.style.width = `${r.width + pad * 2}px`;
+      spotlight.style.height = `${r.height + pad * 2}px`;
+      spotlight.style.opacity = "1";
+      spotlight.classList.add("sg-visible");
+      el.classList.add("sg-target");
+      lastTarget = el;
     }
 
     async function initModel() {
@@ -365,8 +462,11 @@
       app.stage.addChild(model);
 
       app.ticker.add(() => {
-        if (!model) return;
-        for (const id of Object.keys(paramOverrides)) setParam(id, paramOverrides[id]);
+        if (!model || overrideKeys.length === 0) return;
+        for (let k = 0; k < overrideKeys.length; k++) {
+          const id = overrideKeys[k];
+          setParam(id, paramOverrides[id]);
+        }
       });
 
       document.addEventListener("pointermove", onPointerMove);
@@ -378,9 +478,19 @@
     }
 
     function onResize() {
-      if (!app || destroyed) return;
-      syncCanvasSize();
-      if (active) syncLayout(opts.steps[stepIndex]);
+      // Mobile address-bar / keyboard fires resize often — debounce and
+      // never re-hop / re-dock the guide (that looked like it was reloading).
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!app || destroyed) return;
+        syncCanvasSize();
+        if (!active) return;
+        const step = opts.steps[stepIndex];
+        if (step?.target && lastTarget) {
+          updateSpotlightRect(lastTarget);
+          lookAtTarget(lastTarget);
+        }
+      }, 180);
     }
 
     function playPose(index, force = true) {
@@ -501,14 +611,26 @@
       clearInterval(typeTimer);
       typingDone = false;
       lipTalking = !!opts.lipSync;
+
+      // Reduced motion (or speed 0): show the whole line instantly, no lip flap
+      if (reduceMotion || opts.typeSpeedMs <= 0) {
+        textEl.textContent = text;
+        typingDone = true;
+        lipTalking = false;
+        return;
+      }
+
+      // Reuse a single text node + caret element (no per-tick DOM teardown)
       textEl.textContent = "";
-      let i = 0;
+      const textNode = document.createTextNode("");
       const caret = document.createElement("span");
       caret.className = "sg-caret";
+      textEl.appendChild(textNode);
+      textEl.appendChild(caret);
 
+      let i = 0;
       typeTimer = setInterval(() => {
-        textEl.textContent = text.slice(0, i);
-        textEl.appendChild(caret);
+        textNode.nodeValue = text.slice(0, i);
         if (lipTalking && i < text.length) {
           const ch = text[i] || " ";
           const open = /[aeiouAEIOU]/.test(ch) ? 0.7 : /[\s.,!?]/.test(ch) ? 0.05 : 0.35;
@@ -521,9 +643,10 @@
           lipTalking = false;
           holdParam("ParamMouthOpenY", 0);
           later(200, () => releaseParams("ParamMouthOpenY"));
-          textEl.textContent = text;
+          textNode.nodeValue = text;
+          if (caret.parentNode) caret.parentNode.removeChild(caret);
         }
-      }, 16);
+      }, Math.max(4, opts.typeSpeedMs || 18));
     }
 
     function skipTyping(fullText) {
@@ -537,7 +660,10 @@
       return true;
     }
 
-    function hopGuide() {
+    function hopGuide(force = false) {
+      const now = Date.now();
+      if (!force && now < hopCooldownUntil) return;
+      hopCooldownUntil = now + 650;
       stage.classList.remove("sg-pop");
       void stage.offsetWidth;
       stage.classList.add("sg-pop");
@@ -553,12 +679,11 @@
 
     function placeGuideDefault() {
       if (isMobile()) {
-        dockMobileSheet();
-        afterLayout(() => {
-          syncCanvasSize();
-        });
+        dockMobileSheet({ hop: true });
+        afterLayout(() => syncCanvasSize());
         return;
       }
+      mobileDocked = false;
       root.classList.remove("sg-mobile");
       stage.classList.remove("sg-facing-left", "sg-stack");
       const margin = 12;
@@ -570,11 +695,11 @@
       stage.style.top = `${top}px`;
       stage.style.bottom = "";
       stage.style.right = "";
-      hopGuide();
+      hopGuide(true);
       afterLayout(() => syncCanvasSize());
     }
 
-    function placeGuideNear(el) {
+    function placeGuideNear(el, { hop = false } = {}) {
       const margin = 10;
       const gap = 14;
       const vw = window.innerWidth;
@@ -582,21 +707,17 @@
 
       // Phones: dock sheet at bottom; keep spotlight clear above it
       if (isMobile()) {
-        dockMobileSheet();
+        dockMobileSheet({ hop });
         scrollTargetIntoSafeView(el);
         lookAtTarget(el);
         afterLayout(() => {
           syncCanvasSize();
           lookAtTarget(el);
         });
-        setTimeout(() => {
-          scrollTargetIntoSafeView(el);
-          lookAtTarget(el);
-          syncCanvasSize();
-        }, 300);
         return;
       }
 
+      mobileDocked = false;
       root.classList.remove("sg-mobile");
       stage.classList.toggle("sg-stack", false);
       const sw = stage.offsetWidth || 500;
@@ -636,7 +757,7 @@
       stage.style.top = `${clamp(top, margin, vh - sh - margin)}px`;
       stage.style.bottom = "";
       stage.style.right = "";
-      hopGuide();
+      if (hop) hopGuide(true);
       lookAtTarget(el);
       afterLayout(() => {
         syncCanvasSize();
@@ -653,31 +774,14 @@
       spotlight.style.opacity = "0";
     }
 
-    function measureAndPlace(el) {
-      const pad = 12;
-      // On mobile, scroll first so spotlight isn't under the sheet
+    function measureAndPlace(el, { hop = false } = {}) {
       if (isMobile()) {
-        dockMobileSheet();
+        dockMobileSheet({ hop });
         scrollTargetIntoSafeView(el);
       }
 
-      const apply = () => {
-        const r = el.getBoundingClientRect();
-        spotlight.style.top = `${Math.max(8, r.top - pad)}px`;
-        spotlight.style.left = `${Math.max(8, r.left - pad)}px`;
-        spotlight.style.width = `${r.width + pad * 2}px`;
-        spotlight.style.height = `${r.height + pad * 2}px`;
-        spotlight.style.opacity = "1";
-        spotlight.classList.add("sg-visible");
-        el.classList.add("sg-target");
-        lastTarget = el;
-        placeGuideNear(el);
-      };
-
-      apply();
-      if (isMobile()) {
-        setTimeout(apply, 320);
-      }
+      updateSpotlightRect(el);
+      placeGuideNear(el, { hop: false });
     }
 
     function syncLayout(step) {
@@ -693,11 +797,12 @@
         return;
       }
       const el = document.querySelector(step.target);
-      if (el) measureAndPlace(el);
+      if (el) measureAndPlace(el, { hop: false });
     }
 
     function placeSpotlight(selector) {
       clearHighlight();
+      clearTimeout(placeTimer);
       if (!selector) {
         syncLayout({ target: null });
         return;
@@ -708,15 +813,29 @@
         return;
       }
       if (isMobile()) {
-        dockMobileSheet();
+        dockMobileSheet({ hop: true });
         scrollTargetIntoSafeView(el);
+        // One delayed remeasure after scroll — no hop storm while text types
+        placeTimer = setTimeout(() => {
+          measureAndPlace(el, { hop: false });
+          placeTimer = setTimeout(() => {
+            if (lastTarget === el || document.querySelector(selector) === el) {
+              updateSpotlightRect(el);
+              lookAtTarget(el);
+            }
+          }, 280);
+        }, 260);
       } else {
         el.scrollIntoView({ block: "center", behavior: "smooth" });
+        placeTimer = setTimeout(() => {
+          measureAndPlace(el, { hop: true });
+        }, 280);
       }
-      setTimeout(() => {
-        measureAndPlace(el);
-        requestAnimationFrame(() => measureAndPlace(el));
-      }, 280);
+    }
+
+    function setClickAdvance(on) {
+      spotlight.classList.toggle("sg-clickable", on);
+      if (hintEl) hintEl.hidden = !on;
     }
 
     function showStep(index) {
@@ -727,8 +846,17 @@
         return;
       }
       clearGimmicks();
+      const last = index === opts.steps.length - 1;
       pillEl.textContent = `${index + 1} / ${opts.steps.length}`;
-      btnNext.textContent = step.nextLabel || (index === opts.steps.length - 1 ? "Done" : "Next");
+      btnNext.textContent =
+        step.nextLabel || (last ? opts.doneLabel : opts.nextLabel || "Next");
+      if (progressEl) {
+        progressEl.style.width = `${((index + 1) / opts.steps.length) * 100}%`;
+      }
+      const wantClick =
+        (step.waitForClick != null ? step.waitForClick : opts.advanceOnClick) &&
+        !!step.target;
+      setClickAdvance(!!wantClick);
       // Allow host page to open modals / tabs before spotlight measures
       opts.onBeforeStep?.(step, index);
       opts.onStep?.(step, index);
@@ -774,6 +902,7 @@
       clearHighlight();
       clearGimmicks();
       clearInterval(typeTimer);
+      clearTimeout(placeTimer);
       canvasWrap.classList.add("sg-exit");
       document.body.classList.remove("sg-active");
       if (completed && opts.storageKey) {
@@ -787,6 +916,7 @@
         canvasWrap.classList.remove("sg-exit");
         if (completed) opts.onComplete?.();
         else opts.onSkip?.();
+        opts.onEnd?.(completed);
       }, 420);
     }
 
@@ -797,11 +927,13 @@
       document.body.classList.add("sg-active");
       canvasWrap.classList.remove("sg-exit");
       active = true;
-      if (isMobile()) dockMobileSheet();
+      mobileDocked = false;
+      lastCanvasW = 0;
+      lastCanvasH = 0;
+      if (isMobile()) dockMobileSheet({ hop: false });
       // Un-hiding changes layout; re-fit bust after CSS paints
       afterLayout(() => {
-        syncCanvasSize();
-        placeGuideDefault();
+        syncCanvasSize(true);
         showStep(0);
       });
       opts.onStart?.();
@@ -812,6 +944,8 @@
       active = false;
       clearGimmicks();
       clearInterval(typeTimer);
+      clearTimeout(resizeTimer);
+      clearTimeout(placeTimer);
       clearHighlight();
       document.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("resize", onResize);
@@ -842,9 +976,23 @@
       e.preventDefault();
       replayPose();
     });
-    document.addEventListener("keydown", onKey);
+    spotlight.addEventListener("click", () => {
+      if (active && spotlight.classList.contains("sg-clickable")) next();
+    });
+    if (opts.keyboard) document.addEventListener("keydown", onKey);
 
-    await initModel();
+    try {
+      await initModel();
+    } catch (err) {
+      // Model failed to load — clean up so we don't leak a dead overlay
+      try {
+        app?.destroy(true);
+      } catch (_) {}
+      app = null;
+      if (opts.keyboard) document.removeEventListener("keydown", onKey);
+      root.remove();
+      throw err;
+    }
 
     const api = {
       start,

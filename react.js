@@ -23,20 +23,24 @@ export function useShivamGuide(options) {
     onComplete,
     onStep,
     onBeforeStep,
+    onSkip,
+    onEnd,
+    onStart,
+    // Everything else (theme, typeSpeedMs, showProgress, advanceOnClick,
+    // spotlightPadding, labels, scales, poses, …) is forwarded verbatim.
+    ...rest
   } = options;
 
   const tourRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(null);
 
-  const onCompleteRef = useRef(onComplete);
-  const onStepRef = useRef(onStep);
-  const onBeforeStepRef = useRef(onBeforeStep);
-  onCompleteRef.current = onComplete;
-  onStepRef.current = onStep;
-  onBeforeStepRef.current = onBeforeStep;
+  const cbRef = useRef({});
+  cbRef.current = { onComplete, onStep, onBeforeStep, onSkip, onEnd, onStart };
 
   const stepsKey = JSON.stringify(steps);
+  // Serialize plain-data options so the tour rebuilds when they change.
+  const restKey = JSON.stringify(rest);
 
   useEffect(() => {
     if (!enabled || !steps?.length) return undefined;
@@ -55,15 +59,19 @@ export function useShivamGuide(options) {
 
       try {
         const tour = await window.ShivamGuide.create({
+          ...rest,
           modelUrl,
           speaker,
           steps,
           autoStart,
           storageKey,
           loadPeers,
-          onComplete: (...a) => onCompleteRef.current?.(...a),
-          onStep: (...a) => onStepRef.current?.(...a),
-          onBeforeStep: (...a) => onBeforeStepRef.current?.(...a),
+          onStart: (...a) => cbRef.current.onStart?.(...a),
+          onComplete: (...a) => cbRef.current.onComplete?.(...a),
+          onStep: (...a) => cbRef.current.onStep?.(...a),
+          onBeforeStep: (...a) => cbRef.current.onBeforeStep?.(...a),
+          onSkip: (...a) => cbRef.current.onSkip?.(...a),
+          onEnd: (...a) => cbRef.current.onEnd?.(...a),
         });
 
         if (cancelled) {
@@ -89,7 +97,7 @@ export function useShivamGuide(options) {
       setReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, modelUrl, speaker, autoStart, storageKey, loadPeers, stepsKey]);
+  }, [enabled, modelUrl, speaker, autoStart, storageKey, loadPeers, stepsKey, restKey]);
 
   const start = useCallback(() => tourRef.current?.start(), []);
   const end = useCallback(() => tourRef.current?.end(), []);

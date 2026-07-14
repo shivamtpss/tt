@@ -1,10 +1,16 @@
-/* ShivamGuide — scoped styles (safe on any site). Override via your CSS. */
+/* ShivamGuide — scoped styles (safe on any site).
+   Override any --sg-* variable via your CSS or the `theme` option. */
 :root {
   --sg-dim: rgba(2, 6, 12, 0.78);
   --sg-ring: #fff;
   --sg-accent: rgba(70, 212, 194, 0.9);
   --sg-speaker: #0d7a70;
   --sg-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sg-radius: 14px;
+  --sg-dialogue-bg: linear-gradient(165deg, rgba(255, 255, 255, 0.97), #e8eef5);
+  --sg-text: #132033;
+  --sg-primary: linear-gradient(135deg, #46d4c2, #2aa9a0);
+  --sg-primary-text: #04140f;
 }
 
 body.sg-active {
@@ -34,12 +40,12 @@ body.sg-active {
 
 .sg-spotlight {
   position: absolute;
-  border-radius: 14px;
+  border-radius: var(--sg-radius);
   background: transparent;
+  /* Static full-screen dim + crisp ring (NOT animated → no per-frame repaint) */
   box-shadow:
     0 0 0 9999px var(--sg-dim),
-    0 0 0 3px var(--sg-ring),
-    0 0 0 7px var(--sg-accent);
+    0 0 0 3px var(--sg-ring);
   pointer-events: none;
   transition:
     top 0.35s cubic-bezier(0.22, 1, 0.36, 1),
@@ -47,28 +53,46 @@ body.sg-active {
     width 0.35s cubic-bezier(0.22, 1, 0.36, 1),
     height 0.35s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.2s ease;
+  will-change: top, left, width, height;
   opacity: 0;
   z-index: 1;
 }
 
-.sg-spotlight.sg-visible {
-  opacity: 1;
-  animation: sg-pulse 1.5s ease-in-out infinite;
+/* The pulse rides a tiny pseudo-element (transform/opacity only = GPU cheap) */
+.sg-spotlight::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 4px var(--sg-accent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
 }
 
-@keyframes sg-pulse {
+.sg-spotlight.sg-visible {
+  opacity: 1;
+}
+
+.sg-spotlight.sg-visible::after {
+  opacity: 1;
+  animation: sg-ring-pulse 1.6s ease-in-out infinite;
+}
+
+.sg-spotlight.sg-clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+@keyframes sg-ring-pulse {
   0%,
   100% {
-    box-shadow:
-      0 0 0 9999px var(--sg-dim),
-      0 0 0 3px var(--sg-ring),
-      0 0 0 7px var(--sg-accent);
+    transform: scale(1);
+    opacity: 0.9;
   }
   50% {
-    box-shadow:
-      0 0 0 9999px var(--sg-dim),
-      0 0 0 3px var(--sg-ring),
-      0 0 0 12px rgba(70, 212, 194, 0.45);
+    transform: scale(1.05);
+    opacity: 0.4;
   }
 }
 
@@ -125,6 +149,7 @@ body.sg-active {
   overflow: hidden; /* crop model inside the box */
   filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55));
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
 /*
@@ -272,9 +297,49 @@ body.sg-active {
   margin-bottom: 1.25rem;
   padding: 1rem 1.15rem 1.05rem;
   border-radius: 16px;
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.97), #e8eef5);
-  color: #132033;
+  background: var(--sg-dialogue-bg);
+  color: var(--sg-text);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.sg-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(19, 32, 51, 0.12);
+  overflow: hidden;
+  margin: 0 0 0.7rem;
+}
+
+.sg-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sg-accent), var(--sg-speaker));
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sg-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: auto;
+  font-size: 0.74rem;
+  font-weight: 650;
+  color: var(--sg-speaker);
+  opacity: 0.9;
+}
+
+.sg-hint::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sg-accent);
+  animation: sg-ring-pulse 1.4s ease-in-out infinite;
+}
+
+.sg-hint[hidden] {
+  display: none;
 }
 
 .sg-meta {
@@ -367,8 +432,8 @@ body.sg-active {
 }
 
 .sg-btn-primary {
-  background: linear-gradient(135deg, #46d4c2, #2aa9a0);
-  color: #04140f;
+  background: var(--sg-primary);
+  color: var(--sg-primary-text);
   min-width: 6.5rem;
 }
 
@@ -380,4 +445,24 @@ body.sg-active {
 
 .sg-btn-ghost:hover {
   color: #132033;
+}
+
+.sg-btn[hidden] {
+  display: none;
+}
+
+/* Respect users who ask for less motion */
+@media (prefers-reduced-motion: reduce) {
+  .sg-spotlight,
+  .sg-stage,
+  .sg-canvas {
+    transition-duration: 0.01ms !important;
+  }
+  .sg-spotlight.sg-visible::after,
+  .sg-hint::before,
+  .sg-caret,
+  .sg-stage.sg-pop .sg-canvas,
+  .sg-tag {
+    animation: none !important;
+  }
 }

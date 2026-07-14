@@ -285,6 +285,7 @@ Each item in `steps`:
 | `poseName` | `string` | Override the yellow `POSE · …` tag |
 | `expression` | `number` | Face expression pack index |
 | `face` | `string` | Accent: `smile` \| `look` \| `sparkle` \| `wink` \| `think` \| `hype` \| `bye` |
+| `waitForClick` | `boolean` | Advance only when the highlighted target is tapped |
 | `id` | `string` | Optional id for your own tracking |
 
 ### Create / hook options
@@ -299,11 +300,46 @@ Each item in `steps`:
 | `loadPeers` | `true` | Auto-inject Cubism/Pixi CDN scripts |
 | `showSkip` | `true` | Show Skip button |
 | `showPoseReplay` | `true` | Show Replay pose |
+| `showProgress` | `false` | Show a step progress bar |
 | `lipSync` | `true` | Mouth moves while typing |
 | `zIndex` | `9999` | Overlay z-index |
 | `onBeforeStep` | — | Run *before* spotlight (open modals here) |
 | `onStep` | — | After step starts |
 | `onComplete` / `onSkip` / `onStart` | — | Lifecycle |
+| `onEnd` | — | Fires after complete **or** skip → `(completed: boolean)` |
+
+### Advanced customization
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `theme` | `null` | Color/font overrides (see below) |
+| `typeSpeedMs` | `18` | Typewriter speed, ms per char (`0` = instant) |
+| `spotlightPadding` | `12` | Gap between the target and the ring, in px |
+| `spotlightRadius` | `null` | Spotlight corner radius, in px |
+| `keyboard` | `true` | Enter/Space = next, Esc = close |
+| `advanceOnClick` | `false` | Tap the highlighted target to advance (all steps) |
+| `clickHint` | `"Tap the highlighted area"` | Hint shown for click-to-advance steps |
+| `reduceMotion` | `"auto"` | `"auto"` respects the OS setting; `true`/`false` to force |
+| `mobileScale` | `1` | Multiplier for character size on phones |
+| `desktopScale` | `1` | Multiplier for character size on desktop |
+| `skipLabel` / `doneLabel` / `nextLabel` / `poseReplayLabel` | — | Button label overrides |
+
+```js
+await ShivamGuide.create({
+  modelUrl,
+  steps,
+  showProgress: true,
+  advanceOnClick: true,      // user must tap each highlighted element
+  typeSpeedMs: 12,           // snappier text
+  theme: {
+    accent: "#7c5cff",
+    speaker: "#5b3df5",
+    dialogueBg: "linear-gradient(165deg, #ffffff, #f0ecff)",
+    primary: "linear-gradient(135deg, #7c5cff, #5b3df5)",
+    radius: "18px",
+  },
+});
+```
 
 ### Hook return value
 
@@ -335,18 +371,26 @@ await ShivamGuide.ensurePeers(); // optional preload
 
 ## Customizing look
 
-Override CSS variables:
+Either pass a `theme` object (above) or override CSS variables globally:
 
 ```css
 :root {
-  --sg-dim: rgba(2, 6, 12, 0.78);
-  --sg-accent: rgba(70, 212, 194, 0.9);
-  --sg-speaker: #0d7a70;
+  --sg-dim: rgba(2, 6, 12, 0.78);      /* backdrop dim */
+  --sg-ring: #fff;                     /* spotlight inner ring */
+  --sg-accent: rgba(70, 212, 194, 0.9);/* pulse + progress */
+  --sg-speaker: #0d7a70;               /* speaker label + progress */
   --sg-font: system-ui, sans-serif;
+  --sg-radius: 14px;                   /* spotlight corners */
+  --sg-dialogue-bg: linear-gradient(165deg, #fff, #e8eef5);
+  --sg-text: #132033;                  /* dialogue text */
+  --sg-primary: linear-gradient(135deg, #46d4c2, #2aa9a0); /* primary button */
+  --sg-primary-text: #04140f;
 }
 ```
 
-Classes are prefixed with `.sg-` so they rarely clash with your app.
+Classes are prefixed with `.sg-` so they rarely clash with your app. The
+spotlight pulse animates a GPU-friendly transform (no full-screen repaint), and
+everything honors `prefers-reduced-motion`.
 
 ---
 
