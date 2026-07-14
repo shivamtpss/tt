@@ -103,9 +103,6 @@
   function createRoot(opts) {
     const root = document.createElement("div");
     root.className = "sg-root";
-    if (typeof window !== "undefined" && window.innerWidth < 640) {
-      root.classList.add("sg-mobile");
-    }
     root.hidden = true;
     root.setAttribute("aria-live", "polite");
     root.innerHTML = `
@@ -262,13 +259,11 @@
       if (!model || !app) return;
       const w = app.screen.width;
       const h = app.screen.height;
-      const mobile = window.innerWidth < 640;
       model.anchor.set(0.5, 0.5);
-      const scale = Math.min(w / model.width, h / model.height) * (mobile ? 1.35 : 1.15);
+      const scale = Math.min(w / model.width, h / model.height) * 1.15;
       model.scale.set(scale);
       model.x = w * 0.5;
-      // Mobile canvas is short → bias upward so face stays in frame (bust)
-      model.y = h * (mobile ? 0.72 : 0.62);
+      model.y = h * 0.62;
     }
 
     async function initModel() {
@@ -478,17 +473,7 @@
     }
 
     function placeGuideDefault() {
-      const mobile = window.innerWidth < 640;
-      root.classList.toggle("sg-mobile", mobile);
       stage.classList.remove("sg-facing-left", "sg-stack");
-      if (mobile) {
-        stage.style.left = "0px";
-        stage.style.top = "auto";
-        stage.style.bottom = "0px";
-        stage.style.right = "0px";
-        hopGuide();
-        return;
-      }
       const margin = 12;
       const w = stage.offsetWidth || 480;
       const h = stage.offsetHeight || 220;
@@ -496,8 +481,6 @@
       const top = clamp(window.innerHeight - h - 24, margin, window.innerHeight - h - margin);
       stage.style.left = `${left}px`;
       stage.style.top = `${top}px`;
-      stage.style.bottom = "";
-      stage.style.right = "";
       hopGuide();
     }
 
@@ -506,29 +489,9 @@
       const gap = 14;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const mobile = vw < 640;
-      root.classList.toggle("sg-mobile", mobile);
-
-      // Phones: always dock as bottom sheet so spotlight + thumbs stay usable
-      if (mobile) {
-        stage.classList.remove("sg-facing-left");
-        stage.style.left = "0px";
-        stage.style.top = "auto";
-        stage.style.bottom = "0px";
-        stage.style.right = "0px";
-        hopGuide();
-        lookAtTarget(el);
-        requestAnimationFrame(() => {
-          if (!app) return;
-          app.renderer.resize(canvasWrap.clientWidth, canvasWrap.clientHeight);
-          fitModel();
-          lookAtTarget(el);
-        });
-        return;
-      }
-
-      stage.classList.toggle("sg-stack", false);
-      const sw = stage.offsetWidth || 500;
+      const narrow = vw < 640;
+      stage.classList.toggle("sg-stack", narrow);
+      const sw = stage.offsetWidth || (narrow ? 340 : 500);
       const sh = stage.offsetHeight || 240;
       const r = el.getBoundingClientRect();
 
@@ -541,7 +504,7 @@
       let top;
       let faceLeft = false;
 
-      if (spaceBelow < sh + gap && spaceAbove < sh + gap) {
+      if (!narrow && spaceBelow < sh + gap && spaceAbove < sh + gap) {
         if (spaceLeft >= sw + gap || spaceLeft > spaceRight) {
           left = r.left - sw - gap;
           top = clamp(r.top + r.height / 2 - sh / 2, margin, vh - sh - margin);
@@ -563,8 +526,6 @@
       stage.classList.toggle("sg-facing-left", faceLeft);
       stage.style.left = `${clamp(left, margin, vw - sw - margin)}px`;
       stage.style.top = `${clamp(top, margin, vh - sh - margin)}px`;
-      stage.style.bottom = "";
-      stage.style.right = "";
       hopGuide();
       lookAtTarget(el);
       requestAnimationFrame(() => {

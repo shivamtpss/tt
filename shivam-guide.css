@@ -89,8 +89,29 @@ body.sg-active {
     left 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.sg-stage.sg-stack {
+  flex-direction: column;
+  align-items: stretch;
+  width: min(360px, calc(100vw - 24px));
+}
+
+.sg-stage.sg-stack .sg-guide {
+  align-self: center;
+}
+
 .sg-stage.sg-facing-left .sg-canvas {
   transform: scaleX(-1);
+}
+
+@media (max-width: 640px) {
+  .sg-stage {
+    width: min(340px, calc(100vw - 16px));
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .sg-guide {
+    align-self: center;
+  }
 }
 
 .sg-guide {
@@ -105,84 +126,6 @@ body.sg-active {
   height: min(260px, 38vh);
   filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55));
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* —— Mobile: bottom sheet (character + bubble stacked, safe for thumbs) —— */
-@media (max-width: 640px) {
-  .sg-root.sg-mobile .sg-stage,
-  .sg-stage {
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    top: auto !important;
-    width: 100% !important;
-    max-width: none;
-    flex-direction: column-reverse; /* bubble above character feet / closer to thumbs */
-    align-items: stretch;
-    gap: 0;
-    padding: 0 10px calc(10px + env(safe-area-inset-bottom, 0px));
-    box-sizing: border-box;
-  }
-
-  .sg-root.sg-mobile .sg-guide,
-  .sg-guide {
-    align-self: center;
-    width: min(140px, 42vw);
-    order: 2;
-  }
-
-  .sg-root.sg-mobile .sg-canvas,
-  .sg-canvas {
-    /* Bust / upper-body framing — full body was too tall on phones */
-    height: min(168px, 28vh);
-    margin-bottom: -8px;
-  }
-
-  .sg-root.sg-mobile .sg-dialogue,
-  .sg-dialogue {
-    order: 1;
-    margin-bottom: 0;
-    width: 100%;
-    max-height: min(42vh, 280px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    border-radius: 16px 16px 14px 14px;
-    padding: 0.85rem 0.9rem 0.9rem;
-  }
-
-  .sg-root.sg-mobile .sg-text,
-  .sg-text {
-    font-size: 0.95rem;
-    min-height: 2.6em;
-    margin-bottom: 0.75rem;
-  }
-
-  .sg-root.sg-mobile .sg-actions,
-  .sg-actions {
-    justify-content: stretch;
-    gap: 0.4rem;
-  }
-
-  .sg-root.sg-mobile .sg-btn,
-  .sg-btn {
-    flex: 1 1 auto;
-    min-height: 44px; /* thumb-friendly */
-    padding: 0.7rem 0.65rem;
-    font-size: 0.88rem;
-  }
-
-  .sg-root.sg-mobile .sg-btn-primary {
-    flex: 1.4 1 auto;
-  }
-
-  /* Soften face-flip hop on narrow screens */
-  .sg-stage.sg-facing-left .sg-canvas {
-    transform: none;
-  }
-
-  .sg-stage.sg-facing-left.sg-pop .sg-canvas {
-    animation: sg-hop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-  }
 }
 
 .sg-stage.sg-pop .sg-canvas {
