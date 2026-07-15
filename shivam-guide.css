@@ -84,6 +84,11 @@ body.sg-active {
   cursor: pointer;
 }
 
+/* While following a smooth scroll, snap the ring instantly (no lag) */
+.sg-spotlight.sg-notrans {
+  transition: none !important;
+}
+
 @keyframes sg-ring-pulse {
   0%,
   100% {
@@ -153,54 +158,35 @@ body.sg-active {
 }
 
 /*
- * Mobile: compact bottom bar
+ * Mobile: compact floating card (NOT a full-width dock).
+ * JS positions it ABOVE or BELOW the target so the spotlight is never covered.
  * - Character LEFT (bust: face in frame, legs cropped at bottom of canvas)
  * - Dialogue RIGHT (doesn't stack under a giant full-body figure)
- * - Reserved height so spotlight targets stay in the clear area above
  */
 @media (max-width: 640px) {
-  .sg-root {
-    /* Enough room for bust + dialogue actions above the home indicator */
-    --sg-sheet-h: min(210px, 38vh);
-  }
-
   .sg-stage,
   .sg-root.sg-mobile .sg-stage {
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    top: auto !important;
-    width: 100% !important;
+    width: min(360px, calc(100vw - 16px));
     max-width: none;
     flex-direction: row;
     align-items: flex-end;
     gap: 0.35rem;
-    padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    padding: 0;
     box-sizing: border-box;
-    height: auto;
-    max-height: none;
-    min-height: 0;
-    background: linear-gradient(to top, rgba(2, 6, 12, 0.72), rgba(2, 6, 12, 0.35) 55%, transparent);
     z-index: 5;
   }
 
   .sg-guide {
-    flex: 0 0 100px;
-    width: 100px;
+    flex: 0 0 92px;
+    width: 92px;
     align-self: flex-end;
   }
 
   .sg-canvas {
     /* Bust box: face in frame; feet crop via fitModel */
-    height: 148px;
-    width: 100px;
+    height: 140px;
+    width: 92px;
     margin: 0;
-  }
-
-  /* Helps native scrollIntoView keep targets clear of the sheet */
-  .sg-target {
-    scroll-margin-bottom: calc(var(--sg-sheet-h) + 28px);
-    scroll-margin-top: 20px;
   }
 
   .sg-dialogue {

@@ -365,7 +365,6 @@
     let placeTimer = null;
     let lastCanvasW = 0;
     let lastCanvasH = 0;
-    let mobileDocked = false;
 
     /** Resize Pixi to the real CSS box, then re-fit the bust (esp. after un-hiding). */
     function syncCanvasSize(force = false) {
@@ -389,41 +388,180 @@
       return window.innerWidth < 640;
     }
 
-    /** Keep spotlight targets above the bottom sheet on phones */
-    function sheetReservePx() {
-      if (!isMobile()) return 24;
-      const stageH = stage.offsetHeight || Math.min(window.innerHeight * 0.36, 200);
-      return stageH + 20;
-    }
-
-    function scrollTargetIntoSafeView(el) {
-      const reserve = sheetReservePx();
-      const padTop = 16;
-      const r = el.getBoundingClientRect();
-      const safeBottom = window.innerHeight - reserve;
-      const ring = 16;
-      const fullyVisible =
-        r.top - ring >= padTop && r.bottom + ring <= safeBottom;
-      if (fullyVisible) return;
-
-      const safeH = Math.max(100, safeBottom - padTop);
-      const desiredTop = padTop + Math.min(r.height * 0.1, safeH * 0.2);
-      const delta = r.top - desiredTop;
-      // Ignore tiny drift — prevents address-bar scroll/resize thrash
-      if (Math.abs(delta) < 12) return;
+    /**
+     * Smoothly scroll the page to `top`, calling onFrame each frame so the
+     * spotlight can follow, then onDone once the scroll settles.
+     */
+    function animateScrollTo(top, onFrame, onDone, maxMs = 520) {
       const scroller = document.scrollingElement || document.documentElement;
-      scroller.scrollBy({ top: delta, behavior: "smooth" });
+      const start = scroller.scrollTop;
+      const dist = top - start;
+      if (Math.abs(dist) <= 2) {
+        onFrame && onFrame();
+        onDone && onDone();
+        return;
+      }
+      // Drive the scroll ourselves (instead of native smooth + polling) so we
+      // get a deterministic frame on every tick and can keep the spotlight
+      // glued to the target — and always land exactly on `top`.
+      if (reduceMotion) {
+        scroller.scrollTop = top;
+        onFrame && onFrame();
+        onDone && onDone();
+        return;
+      }
+      const dur = Math.min(maxMs, Math.max(220, Math.abs(dist) * 0.6));
+      const ease = (t) => 1 - Math.pow(1 - t, 3);
+      const t0 = performance.now();
+      (function step() {
+        if (destroyed) return;
+        const p = Math.min(1, (performance.now() - t0) / dur);
+        scroller.scrollTop = start + dist * ease(p);
+        onFrame && onFrame();
+        if (p < 1) {
+          requestAnimationFrame(step);
+        } else {
+          scroller.scrollTop = top;
+          onFrame && onFrame();
+          onDone && onDone();
+        }
+      })();
     }
 
-    function dockMobileSheet({ hop = false } = {}) {
+    /** Bottom-centered card for the intro / no-target step on phones. */
+    function placeMobileDefault() {
       root.classList.add("sg-mobile");
       stage.classList.remove("sg-facing-left", "sg-stack");
-      stage.style.left = "0px";
-      stage.style.right = "0px";
-      stage.style.bottom = "0px";
+      const vw = window.innerWidth;
+      const margin = 8;
+      const sw = stage.offsetWidth || Math.min(360, vw - 16);
+      stage.style.left = `${clamp((vw - sw) / 2, margin, vw - sw - margin)}px`;
+      stage.style.right = "";
       stage.style.top = "auto";
-      mobileDocked = true;
-      if (hop) hopGuide(true);
+      stage.style.bottom = `calc(${margin}px + env(safe-area-inset-bottom, 0px))`;
+    }
+
+    /**
+     * Phones: place the compact card right NEXT TO the target (just above or
+     * below it, as a centered pair) so the guide stays near what it points at —
+     * like desktop. If the target + card can't both fit that way, fall back to
+     * docking the card at the far edge so the spotlight is still never covered.
+     */
+    function placeGuideMobile(el, { scroll = true } = {}) {
+      root.classList.add("sg-mobile");
+      stage.classList.remove("sg-facing-left", "sg-stack");
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const m = 8;
+      const g = 12;
+      const pad = opts.spotlightPadding ?? 12;
+      const ring = 10;
+      const P = pad + ring;
+
+      const sw = stage.offsetWidth || Math.min(360, vw - 16);
+      const sh = stage.offsetHeight || 180;
+
+      const scroller = document.scrollingElement || document.documentElement;
+      const maxScroll = scroll
+        ? Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+        : scroller.scrollTop; // no-scroll mode: pin reqScroll to current
+      const minScroll = scroll ? 0 : scroller.scrollTop;
+      const cur = scroller.scrollTop;
+
+      const r = el.getBoundingClientRect();
+      const blockH = r.height + P * 2; // target + spotlight ring
+      const blockDocTop = cur + r.top - P;
+      const groupH = blockH + g + sh; // target + gap + card
+
+      // Adjacent placement: center the (target + card) pair, card touching the
+      // target on `side`. Anchor the card on its OUTER edge so if the dialogue
+      // grows (longer text) it expands away from the target, never over it.
+      function near(side) {
+        const groupTop = clamp((vh - groupH) / 2, m, Math.max(m, vh - m - groupH));
+        const blockVpTop = side === "below" ? groupTop : groupTop + sh + g;
+        const reqScroll = clamp(blockDocTop - blockVpTop, minScroll, maxScroll);
+        const blockTop = blockDocTop - reqScroll;
+        const blockBottom = blockTop + blockH;
+        const cardTop = side === "below" ? blockBottom + g : blockTop - g - sh;
+        const cardBottom = cardTop + sh;
+        const fits =
+          cardTop >= m - 1 &&
+          cardBottom <= vh - m + 1 &&
+          blockTop >= m - 1 &&
+          blockBottom <= vh - m + 1;
+        return { mode: "near", side, reqScroll, blockTop, blockBottom, cardTop, cardBottom, fits };
+      }
+
+      // Prefer the side the target leans toward so it only travels a little.
+      const order = r.top < vh * 0.5 ? ["below", "above"] : ["above", "below"];
+      let plan = null;
+      for (const s of order) {
+        const c = near(s);
+        if (c.fits) {
+          plan = c;
+          break;
+        }
+      }
+
+      // Fallback: dock at the edge opposite the target (guarantees no cover).
+      if (!plan) {
+        const edge = (side) => {
+          const bandTop = side === "bottom" ? m : sh + g;
+          const bandBottom = side === "bottom" ? vh - sh - g : vh - m;
+          const bandH = Math.max(0, bandBottom - bandTop);
+          const desiredVpTop = bandTop + Math.max(0, (bandH - blockH) / 2);
+          const reqScroll = clamp(blockDocTop - desiredVpTop, minScroll, maxScroll);
+          const vpTop = blockDocTop - reqScroll;
+          const vpBottom = vpTop + blockH;
+          const visible =
+            Math.max(0, Math.min(vpBottom, bandBottom) - Math.max(vpTop, bandTop));
+          return { mode: "edge", side, reqScroll, visible };
+        };
+        plan = [edge("bottom"), edge("top")].sort((a, b) => b.visible - a.visible)[0];
+      }
+
+      // Position the card horizontally centered, anchored per the plan.
+      const left = clamp((vw - sw) / 2, m, vw - sw - m);
+      stage.style.left = `${left}px`;
+      stage.style.right = "";
+      if (plan.mode === "edge") {
+        if (plan.side === "bottom") {
+          stage.style.top = "auto";
+          stage.style.bottom = `calc(${m}px + env(safe-area-inset-bottom, 0px))`;
+        } else {
+          stage.style.bottom = "auto";
+          stage.style.top = `${m}px`;
+        }
+      } else if (plan.side === "below") {
+        // card below target → anchor its TOP (grows downward, away from target)
+        stage.style.bottom = "auto";
+        stage.style.top = `${Math.round(plan.cardTop)}px`;
+      } else {
+        // card above target → anchor its BOTTOM (grows upward, away from target)
+        stage.style.top = "auto";
+        stage.style.bottom = `${Math.round(vh - plan.cardBottom)}px`;
+      }
+
+      // Follow the target with the spotlight while scrolling, then lock it in.
+      // Only kill transitions while actually scrolling — otherwise let the ring
+      // slide smoothly between steps (like desktop).
+      const willScroll = Math.abs(plan.reqScroll - cur) > 2;
+      if (willScroll) spotlight.classList.add("sg-notrans");
+      animateScrollTo(
+        plan.reqScroll,
+        () => {
+          if (willScroll) updateSpotlightRect(el);
+        },
+        () => {
+          updateSpotlightRect(el);
+          lookAtTarget(el);
+          if (willScroll) {
+            requestAnimationFrame(() => spotlight.classList.remove("sg-notrans"));
+          }
+        }
+      );
+      afterLayout(() => syncCanvasSize());
     }
 
     function updateSpotlightRect(el) {
@@ -479,16 +617,20 @@
 
     function onResize() {
       // Mobile address-bar / keyboard fires resize often — debounce and
-      // never re-hop / re-dock the guide (that looked like it was reloading).
+      // never re-hop / re-scroll the guide (that looked like it was reloading).
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         if (!app || destroyed) return;
         syncCanvasSize();
         if (!active) return;
         const step = opts.steps[stepIndex];
-        if (step?.target && lastTarget) {
-          updateSpotlightRect(lastTarget);
-          lookAtTarget(lastTarget);
+        const el = step?.target ? document.querySelector(step.target) : null;
+        if (el) {
+          updateSpotlightRect(el);
+          // Re-flip the card if orientation changed it under the target,
+          // but don't yank the scroll position around.
+          if (isMobile()) placeGuideMobile(el, { scroll: false });
+          else lookAtTarget(el);
         }
       }, 180);
     }
@@ -679,11 +821,11 @@
 
     function placeGuideDefault() {
       if (isMobile()) {
-        dockMobileSheet({ hop: true });
+        placeMobileDefault();
+        hopGuide(true);
         afterLayout(() => syncCanvasSize());
         return;
       }
-      mobileDocked = false;
       root.classList.remove("sg-mobile");
       stage.classList.remove("sg-facing-left", "sg-stack");
       const margin = 12;
@@ -705,19 +847,13 @@
       const vw = window.innerWidth;
       const vh = window.innerHeight;
 
-      // Phones: dock sheet at bottom; keep spotlight clear above it
+      // Phones: flip the card above/below the target so it's never covered
       if (isMobile()) {
-        dockMobileSheet({ hop });
-        scrollTargetIntoSafeView(el);
-        lookAtTarget(el);
-        afterLayout(() => {
-          syncCanvasSize();
-          lookAtTarget(el);
-        });
+        placeGuideMobile(el);
+        if (hop) hopGuide(true);
         return;
       }
 
-      mobileDocked = false;
       root.classList.remove("sg-mobile");
       stage.classList.toggle("sg-stack", false);
       const sw = stage.offsetWidth || 500;
@@ -775,13 +911,8 @@
     }
 
     function measureAndPlace(el, { hop = false } = {}) {
-      if (isMobile()) {
-        dockMobileSheet({ hop });
-        scrollTargetIntoSafeView(el);
-      }
-
       updateSpotlightRect(el);
-      placeGuideNear(el, { hop: false });
+      placeGuideNear(el, { hop });
     }
 
     function syncLayout(step) {
@@ -813,18 +944,8 @@
         return;
       }
       if (isMobile()) {
-        dockMobileSheet({ hop: true });
-        scrollTargetIntoSafeView(el);
-        // One delayed remeasure after scroll — no hop storm while text types
-        placeTimer = setTimeout(() => {
-          measureAndPlace(el, { hop: false });
-          placeTimer = setTimeout(() => {
-            if (lastTarget === el || document.querySelector(selector) === el) {
-              updateSpotlightRect(el);
-              lookAtTarget(el);
-            }
-          }, 280);
-        }, 260);
+        // placeGuideMobile handles the scroll + spotlight follow in one pass
+        measureAndPlace(el, { hop: true });
       } else {
         el.scrollIntoView({ block: "center", behavior: "smooth" });
         placeTimer = setTimeout(() => {
@@ -927,10 +1048,9 @@
       document.body.classList.add("sg-active");
       canvasWrap.classList.remove("sg-exit");
       active = true;
-      mobileDocked = false;
       lastCanvasW = 0;
       lastCanvasH = 0;
-      if (isMobile()) dockMobileSheet({ hop: false });
+      if (isMobile()) placeMobileDefault();
       // Un-hiding changes layout; re-fit bust after CSS paints
       afterLayout(() => {
         syncCanvasSize(true);

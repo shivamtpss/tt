@@ -341,6 +341,18 @@ await ShivamGuide.create({
 });
 ```
 
+### Mobile placement
+
+On phones (`< 640px`) the guide is a **compact card that sits right next to the
+target** — the same idea as desktop, just narrower. It parks itself **just above
+or just below** the highlighted element (as a centered pair) and gently scrolls
+so both the target and the card stay in view, so the guide always feels close to
+what it's pointing at instead of jumping to a screen edge. The spotlight ring
+stays glued to the target and is never covered, even for a Submit button or
+footer link at the very bottom of a long form. Only when the target and card
+genuinely can't both fit does it fall back to docking at the far edge. Use
+`mobileScale` to fine-tune the character size.
+
 ### Hook return value
 
 ```ts

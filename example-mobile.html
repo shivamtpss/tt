@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShivamGuide — mobile bottom-target test</title>
+  <link rel="stylesheet" href="./shivam-guide.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #0e1622; color: #e8eef5; }
+    h1 { font-size: 1.2rem; }
+    .field { margin: 0.9rem 0; }
+    label { display: block; font-size: 0.85rem; margin-bottom: 0.3rem; color: #9fb0c3; }
+    input, select { width: 100%; box-sizing: border-box; padding: 0.7rem; border-radius: 10px; border: 1px solid #26364a; background: #16202e; color: #fff; }
+    .spacer { height: 60vh; }
+    #brand { padding: 0.5rem 0.75rem; background: #16202e; border-radius: 10px; display: inline-block; }
+    #cta { padding: 0.8rem 1.25rem; background: #0d7a70; color: #fff; border: 0; border-radius: 10px; cursor: pointer; font-size: 1rem; width: 100%; }
+    #footerlink { display: inline-block; margin-top: 1rem; color: #46d4c2; }
+    button, a { font-family: inherit; }
+    .btnrow { display:flex; gap:.5rem; }
+  </style>
+</head>
+<body>
+  <h1 id="brand">Sign-up form</h1>
+  <div class="field"><label>Name</label><input id="name" placeholder="Jane Doe" /></div>
+  <div class="field"><label>Email</label><input id="email" placeholder="jane@site.com" /></div>
+  <div class="field"><label>Plan</label><select id="plan"><option>Free</option><option>Pro</option></select></div>
+
+  <div class="spacer"></div>
+
+  <div class="field"><label>Address</label><input id="addr" placeholder="123 Street" /></div>
+  <div class="field"><label>Promo code</label><input id="promo" placeholder="SAVE10" /></div>
+  <div class="btnrow">
+    <button type="button" id="cta">Create account</button>
+  </div>
+  <a href="#" id="footerlink">Terms &amp; privacy (very bottom link)</a>
+
+  <p><button type="button" id="replay">Replay tour</button></p>
+
+  <script src="./shivam-guide.js"></script>
+  <script>
+    (async () => {
+      const tour = await ShivamGuide.create({
+        modelUrl: "https://cdn.jsdelivr.net/gh/evrstr/live2d-widget-models/live2d_evrstr/natori/model.json",
+        speaker: "Guide",
+        autoStart: true,
+        showProgress: true,
+        steps: [
+          { target: "#brand", line: "Welcome! Let's fill this form out together.", pose: 0, face: "smile" },
+          { target: "#name", line: "Type your name here first.", pose: 1, face: "look" },
+          { target: "#plan", line: "Pick a plan that fits you.", pose: 2, face: "look" },
+          { target: "#cta", line: "This Create account button is near the bottom — the guide must not cover it.", pose: 2, face: "hype" },
+          { target: "#footerlink", line: "And this is the very last link at the bottom of the page.", pose: 8, face: "bye", nextLabel: "Done" },
+        ],
+      });
+      document.getElementById("replay").onclick = () => tour.start();
+    })();
+  </script>
+</body>
+</html>
