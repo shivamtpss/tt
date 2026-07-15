@@ -225,6 +225,10 @@
         reduceMotion: "auto",
         mobileScale: 1,
         desktopScale: 1,
+        modelAnchorY: 0.62,
+        mobileAnchorY: 0.44,
+        mobileModelScale: 2.45,
+        debug: false,
         skipLabel: "Skip",
         doneLabel: "Done",
         nextLabel: null,
@@ -307,6 +311,10 @@
     let overrideKeys = [];
     let active = false;
     let destroyed = false;
+    let motionCatalog = [];
+    let exprCatalog = [];
+    let motionByName = Object.create(null);
+    let exprByName = Object.create(null);
 
     function core() {
       return model?.internalModel?.coreModel;
@@ -357,28 +365,26 @@
       const h = Math.max(app.screen.height, 1);
       const mobile = window.innerWidth < 640;
       model.anchor.set(0.5, 0.5);
-      // Always reset so repeated fits don't compound
       model.scale.set(1);
 
       if (mobile) {
-        // Bust frame: oversize the model so legs crop at the BOTTOM.
-        // Keep full head in frame (nudge y down if hair clips).
         const naturalH = Math.max(model.height, 1);
         const naturalW = Math.max(model.width, 1);
+        const mms = opts.mobileModelScale || 2.45;
         const scale =
-          Math.max((h * 2.45) / naturalH, (w * 1.2) / naturalW) *
+          Math.max((h * mms) / naturalH, (w * 1.2) / naturalW) *
           (opts.mobileScale || 1);
         model.scale.set(scale);
         model.x = w * 0.5;
         const drawnH = model.height;
-        // Slightly below half-center → face/hair fully inside, waist+ crop out
-        model.y = drawnH < h ? h * 0.55 : drawnH * 0.44;
+        const anchorY = opts.mobileAnchorY ?? 0.44;
+        model.y = drawnH < h ? h * 0.55 : drawnH * anchorY;
       } else {
         const scale =
           Math.min(w / model.width, h / model.height) * 1.15 * (opts.desktopScale || 1);
         model.scale.set(scale);
         model.x = w * 0.5;
-        model.y = h * 0.62;
+        model.y = h * (opts.modelAnchorY ?? 0.62);
       }
     }
 
@@ -621,6 +627,41 @@
       fitModel();
       app.stage.addChild(model);
 
+      // --- One-time introspection: build motion + expression catalogs ---
+      motionCatalog = [];
+      motionByName = Object.create(null);
+      const allDefs = model.internalModel?.motionManager?.definitions || {};
+      for (const group of Object.keys(allDefs)) {
+        (allDefs[group] || []).forEach((def, i) => {
+          const file = def?.file || def?.File || "";
+          const name = file
+            .replace(/^.*[\\/]/, "")
+            .replace(/\.motion3\.json$/i, "")
+            .replace(/\.mtn$/i, "")
+            .replace(/\.\w+$/, "");
+          const entry = { group, index: i, name, file };
+          motionCatalog.push(entry);
+          if (name) motionByName[name] = entry;
+        });
+      }
+
+      exprCatalog = [];
+      exprByName = Object.create(null);
+      const eDefs =
+        model.internalModel?.motionManager?.expressionManager?.definitions || [];
+      eDefs.forEach((def, i) => {
+        const raw = def?.name || def?.Name || "";
+        const name = raw.replace(/\.exp\d?\.json$/i, "") || "expr_" + i;
+        const entry = { index: i, name, file: def?.file || def?.File || "" };
+        exprCatalog.push(entry);
+        exprByName[name] = entry;
+      });
+
+      if (opts.debug) {
+        console.log("ShivamGuide motions:", motionCatalog);
+        console.log("ShivamGuide expressions:", exprCatalog);
+      }
+
       app.ticker.add(() => {
         if (!model || overrideKeys.length === 0) return;
         for (let k = 0; k < overrideKeys.length; k++) {
@@ -657,37 +698,89 @@
       }, 180);
     }
 
-    function playPose(index, force = true) {
+    function resolvePose(spec) {
+      if (spec == null) return { group: "", index: 0 };
+      // "group:index" string
+      if (typeof spec === "string" && spec.includes(":")) {
+        const [g, i] = spec.split(":");
+        return { group: g, index: parseInt(i, 10) || 0 };
+      }
+      // name string — O(1) lookup
+      if (typeof spec === "string") {
+        const hit = motionByName[spec];
+        if (hit) return { group: hit.group, index: hit.index };
+        console.warn(
+          `ShivamGuide: motion "${spec}" not found. Available:`,
+          motionCatalog.map((m) => m.name).filter(Boolean)
+        );
+        return { group: "", index: 0 };
+      }
+      // { group, index } object
+      if (typeof spec === "object") {
+        return { group: spec.group || "", index: spec.index || 0 };
+      }
+      // number — flat index into catalog, fallback to "" group
+      const flat = typeof spec === "number" ? spec : 0;
+      if (motionCatalog.length && flat < motionCatalog.length) {
+        return { group: motionCatalog[flat].group, index: motionCatalog[flat].index };
+      }
+      return { group: "", index: ((flat % 28) + 28) % 28 };
+    }
+
+    function playPose(spec, force = true) {
       if (!model) return;
       try {
-        const defs = model.internalModel?.motionManager?.definitions?.[""];
-        if (!defs?.length) {
-          model.motion("");
-          return;
-        }
-        const i = ((index % defs.length) + defs.length) % defs.length;
-        model.motion("", i, force ? 3 : 2);
+        const { group, index } = resolvePose(spec);
+        model.motion(group, index, force ? 3 : 2);
       } catch (_) {}
     }
 
-    function setExpression(i) {
-      if (!model || typeof i !== "number") return;
+    function setExpression(spec) {
+      if (!model || spec == null) return;
       try {
-        const mgr = model.internalModel?.motionManager?.expressionManager;
-        const count = mgr?.definitions?.length ?? 11;
-        model.expression(((i % count) + count) % count);
+        if (typeof spec === "string") {
+          const hit = exprByName[spec];
+          if (hit) {
+            model.expression(hit.index);
+          } else {
+            console.warn(
+              `ShivamGuide: expression "${spec}" not found. Available:`,
+              exprCatalog.map((e) => e.name)
+            );
+          }
+          return;
+        }
+        if (typeof spec === "number") {
+          const count = exprCatalog.length || 11;
+          model.expression(((spec % count) + count) % count);
+        }
       } catch (_) {
         try {
-          model.expression(i);
+          if (typeof spec === "number") model.expression(spec);
         } catch (__) {}
       }
     }
 
     function poseLabel(step) {
       if (step.poseName) return `POSE · ${step.poseName}`;
-      const id = step.pose ?? 0;
-      const p = (opts.poses || []).find((x) => x.id === id) || (opts.poses || [])[id];
-      return p ? `POSE · ${p.name}` : `POSE · #${id}`;
+      const spec = step.pose ?? 0;
+      // Try user-supplied poses array first (backward compat with DEFAULT_POSES)
+      if (typeof spec === "number") {
+        const p = (opts.poses || []).find((x) => x.id === spec) || (opts.poses || [])[spec];
+        if (p) return `POSE · ${p.name}`;
+      }
+      // Auto-derive from catalog
+      const resolved = resolvePose(spec);
+      const entry = motionCatalog.find(
+        (m) => m.group === resolved.group && m.index === resolved.index
+      );
+      if (entry && entry.name && !/^(motion\d+|mtn_\d+)$/i.test(entry.name)) {
+        return `POSE · ${entry.name.toUpperCase()}`;
+      }
+      if (resolved.group) {
+        return `POSE · ${resolved.group.toUpperCase()} · ${resolved.index}`;
+      }
+      return `POSE · #${resolved.index}`;
     }
 
     function showTag(label) {
@@ -763,11 +856,11 @@
     }
 
     function applyPerformance(step) {
-      const poseId = typeof step.pose === "number" ? step.pose : 0;
+      const pose = step.pose ?? 0;
       showTag(poseLabel(step));
       setExpression(step.expression);
-      playPose(poseId, true);
-      later(90, () => playPose(poseId, true));
+      playPose(pose, true);
+      later(90, () => playPose(pose, true));
       later(140, () => runFace(step.face));
     }
 
@@ -1041,9 +1134,8 @@
     function replayPose() {
       const step = opts.steps[stepIndex];
       if (!step) return;
-      const poseId = typeof step.pose === "number" ? step.pose : 0;
       showTag(poseLabel(step));
-      playPose(poseId, true);
+      playPose(step.pose ?? 0, true);
       hopGuide();
       later(100, () => runFace(step.face));
     }
@@ -1177,12 +1269,10 @@
       destroy,
       getIndex: () => stepIndex,
       isActive: () => active,
-      get root() {
-        return root;
-      },
-      get model() {
-        return model;
-      },
+      get root() { return root; },
+      get model() { return model; },
+      get motions() { return motionCatalog; },
+      get expressions() { return exprCatalog; },
     };
 
     if (opts.autoStart) start();

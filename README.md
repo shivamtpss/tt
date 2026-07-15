@@ -281,9 +281,9 @@ Each item in `steps`:
 | `target` | `string \| null` | CSS selector to spotlight (`"#cta"`). Omit/`null` = no hole |
 | `line` | `string` | Dialogue text (typewriter + lip sync) |
 | `nextLabel` | `string` | Button label (default `Next` / `Done`) |
-| `pose` | `number` | Body motion index (`0`–`8` on the default Natori model) |
+| `pose` | `number \| string \| object` | Motion: flat index, `"group:index"`, filename, or `{ group, index }` |
 | `poseName` | `string` | Override the yellow `POSE · …` tag |
-| `expression` | `number` | Face expression pack index |
+| `expression` | `number \| string` | Expression by index or name (e.g. `"f03"`) |
 | `face` | `string` | Accent: `smile` \| `look` \| `sparkle` \| `wink` \| `think` \| `hype` \| `bye` |
 | `waitForClick` | `boolean` | Advance only when the highlighted target is tapped |
 | `id` | `string` | Optional id for your own tracking |
@@ -314,7 +314,7 @@ Each item in `steps`:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `theme` | `null` | Color/font overrides (see below) |
-| `typeSpeedMs` | `18` | Typewriter speed, ms per char (`0` = instant) |
+| `typeSpeedMs` | `32` | Typewriter speed, ms per char (`0` = instant) |
 | `spotlightPadding` | `12` | Gap between the target and the ring, in px |
 | `spotlightRadius` | `null` | Spotlight corner radius, in px |
 | `keyboard` | `true` | Enter/Space = next, Esc = close |
@@ -323,6 +323,10 @@ Each item in `steps`:
 | `reduceMotion` | `"auto"` | `"auto"` respects the OS setting; `true`/`false` to force |
 | `mobileScale` | `1` | Multiplier for character size on phones |
 | `desktopScale` | `1` | Multiplier for character size on desktop |
+| `modelAnchorY` | `0.62` | Vertical anchor on desktop (higher = model sits lower) |
+| `mobileAnchorY` | `0.44` | Vertical anchor on mobile |
+| `mobileModelScale` | `2.45` | How much to oversize the model on mobile for bust crop |
+| `debug` | `false` | Log discovered motions/expressions to console on load |
 | `skipLabel` / `doneLabel` / `nextLabel` / `poseReplayLabel` | — | Button label overrides |
 
 ```js
@@ -354,6 +358,59 @@ footer link at the very bottom of a long form. Only when the target and card
 genuinely can't both fit does it fall back to docking at the far edge. Use
 `mobileScale` to fine-tune the character size.
 
+### Working with any model
+
+Every Live2D model has different motions and expressions. ShivamGuide auto-detects
+them at load time and exposes them on the tour object so you can see exactly
+what's available:
+
+```js
+const tour = await ShivamGuide.create({
+  modelUrl: "https://example.com/touma/model.json",
+  cubism: 2,
+  debug: true,   // logs motions + expressions to console
+  steps: [],
+});
+
+console.log(tour.motions);
+// [
+//   { group: "tap", index: 0, name: "motion1", file: "motions/tap/motion1.mtn" },
+//   { group: "tap", index: 1, name: "motion10", file: "motions/tap/motion10.mtn" },
+//   ...
+// ]
+
+console.log(tour.expressions);
+// [
+//   { index: 0, name: "f01", file: "expressions/f01.exp.json" },
+//   ...
+// ]
+```
+
+Then reference motions/expressions in your steps using any format:
+
+```js
+steps: [
+  // By flat index (backward compatible)
+  { pose: 0, line: "First motion in the catalog" },
+
+  // By "group:index" string
+  { pose: "tap:2", line: "Third motion in the tap group" },
+
+  // By filename (most readable)
+  { pose: "Touch Dere1", line: "A specific animation" },
+
+  // By object
+  { pose: { group: "flick_head", index: 0 }, line: "Explicit" },
+
+  // Expressions by name or index
+  { expression: "f03", line: "Expression by name" },
+  { expression: 2, line: "Expression by index" },
+]
+```
+
+If a reference doesn't match, a `console.warn` shows what's available.
+Use `modelAnchorY` / `mobileAnchorY` to tune character framing per model.
+
 ### Hook return value
 
 ```ts
@@ -376,6 +433,8 @@ tour.end();      // dismiss without forcing “completed” storage unless you c
 tour.destroy();  // remove DOM + WebGL — call on unmount
 tour.isActive();
 tour.getIndex();
+tour.motions;      // discovered motion catalog
+tour.expressions;  // discovered expression catalog
 
 await ShivamGuide.ensurePeers(); // optional preload
 ```
