@@ -292,7 +292,8 @@ Each item in `steps`:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `modelUrl` | (required for `create`) | Cubism 3/4 `model.json` URL |
+| `modelUrl` | (required for `create`) | Live2D `model.json` URL (Cubism 2 or 4) |
+| `cubism` | `4` | SDK version: `2` for `.moc` models, `4` for `.moc3` models |
 | `speaker` | `"Guide"` | Name in the bubble |
 | `steps` | — | Tour steps (required) |
 | `autoStart` | `true` | Start after model loads |
@@ -412,10 +413,11 @@ everything honors `prefers-reduced-motion`.
 |---------|-----|
 | `Cannot read properties of null (reading 'matches')` | App is pnpm — use `pnpm add`, not `npm install` |
 | Spotlight finds nothing | Target `id` missing / tour started before render — use `enabled` |
-| Blank character | Model URL / CDN blocked — check Network tab for `.moc3` / textures |
+| Blank character | Model URL / CDN blocked — check Network tab for `.moc3` / `.moc` / textures |
 | Next SSR / `window is not defined` | Missing `"use client"` on the hook component |
 | Tour twice in React Strict Mode | Normal in dev; cleanup `destroy()` handles it |
-| Want a different model | Pass any Cubism 3/4 `modelUrl` |
+| Want a different model | Pass any `modelUrl`; set `cubism: 2` for `.moc` models or `cubism: 4` (default) for `.moc3` |
+| "Model failed to load" error | Check your `cubism` setting matches the model format (`.moc` = 2, `.moc3` = 4) |
 | Disable auto CDN scripts | `loadPeers: false` and load Cubism/Pixi yourself |
 
 ---

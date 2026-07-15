@@ -21,23 +21,43 @@
 (function (global) {
   "use strict";
 
-  const PEERS = [
-    {
-      id: "cubism-core",
-      src: "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
-      ready: () => !!(global.Live2DCubismCore || global.Live2DCubismFramework),
-    },
-    {
-      id: "pixi",
-      src: "https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js",
-      ready: () => !!global.PIXI,
-    },
-    {
-      id: "cubism4",
-      src: "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js",
-      ready: () => !!(global.PIXI && global.PIXI.live2d),
-    },
-  ];
+  const PIXI_PEER = {
+    id: "pixi",
+    src: "https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js",
+    ready: () => !!global.PIXI,
+  };
+
+  const PEERS_BY_VER = {
+    2: [
+      {
+        id: "cubism2-core",
+        src: "https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js",
+        ready: () => !!global.Live2D,
+      },
+      PIXI_PEER,
+      {
+        id: "cubism2",
+        src: "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism2.min.js",
+        ready: () => !!(global.PIXI && global.PIXI.live2d),
+      },
+    ],
+    4: [
+      {
+        id: "cubism-core",
+        src: "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js",
+        ready: () => !!(global.Live2DCubismCore || global.Live2DCubismFramework),
+      },
+      PIXI_PEER,
+      {
+        id: "cubism4",
+        src: "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js",
+        ready: () => !!(global.PIXI && global.PIXI.live2d),
+      },
+    ],
+  };
+
+  // Kept for backward compat (exposed on ShivamGuide.PEERS)
+  const PEERS = PEERS_BY_VER[4];
 
   function loadScript(src, id) {
     return new Promise((resolve, reject) => {
@@ -60,12 +80,13 @@
     });
   }
 
-  /** Inject Cubism + Pixi + cubism4 from CDN when missing (browser only). */
-  async function ensurePeers() {
+  /** Inject Cubism + Pixi + display lib from CDN when missing (browser only). */
+  async function ensurePeers(ver) {
     if (typeof document === "undefined") {
       throw new Error("ShivamGuide: peers need a browser document");
     }
-    for (const peer of PEERS) {
+    const peers = PEERS_BY_VER[ver] || PEERS_BY_VER[4];
+    for (const peer of peers) {
       if (peer.ready()) continue;
       await loadScript(peer.src, peer.id);
       if (!peer.ready()) {
@@ -187,6 +208,7 @@
         showPoseReplay: true,
         showSkip: true,
         showProgress: false,
+        cubism: 4,
         lipSync: true,
         loadPeers: true,
         mount: null,
@@ -194,7 +216,7 @@
         zIndex: 9999,
         // --- Customization ---
         theme: null,
-        typeSpeedMs: 18,
+        typeSpeedMs: 32,
         spotlightPadding: 12,
         spotlightRadius: null,
         keyboard: true,
@@ -229,7 +251,7 @@
       opts.reduceMotion === true ||
       (opts.reduceMotion === "auto" && prefersReduced);
     if (opts.loadPeers !== false) {
-      await ensurePeers();
+      await ensurePeers(opts.cubism);
     }
 
     if (!global.PIXI?.live2d) {
@@ -579,7 +601,7 @@
 
     async function initModel() {
       const { Live2DModel } = PIXI.live2d;
-      // Root starts hidden → clientWidth is 0. Seed with CSS-intended size.
+      if (PIXI.utils?.skipHello) PIXI.utils.skipHello();
       const mobile = isMobile();
       const seedW = mobile ? 100 : canvasWrap.clientWidth || 180;
       const seedH = mobile ? 148 : canvasWrap.clientHeight || 260;
@@ -931,25 +953,28 @@
       if (el) measureAndPlace(el, { hop: false });
     }
 
-    function placeSpotlight(selector) {
+    function placeSpotlight(selector, onReady) {
       clearHighlight();
       clearTimeout(placeTimer);
       if (!selector) {
         syncLayout({ target: null });
+        onReady && onReady();
         return;
       }
       const el = document.querySelector(selector);
       if (!el) {
         placeGuideDefault();
+        onReady && onReady();
         return;
       }
       if (isMobile()) {
-        // placeGuideMobile handles the scroll + spotlight follow in one pass
         measureAndPlace(el, { hop: true });
+        onReady && onReady();
       } else {
         el.scrollIntoView({ block: "center", behavior: "smooth" });
         placeTimer = setTimeout(() => {
           measureAndPlace(el, { hop: true });
+          onReady && onReady();
         }, 280);
       }
     }
@@ -959,7 +984,7 @@
       if (hintEl) hintEl.hidden = !on;
     }
 
-    function showStep(index) {
+    function showStep(index, onReady) {
       stepIndex = index;
       const step = opts.steps[index];
       if (!step) {
@@ -978,12 +1003,18 @@
         (step.waitForClick != null ? step.waitForClick : opts.advanceOnClick) &&
         !!step.target;
       setClickAdvance(!!wantClick);
-      // Allow host page to open modals / tabs before spotlight measures
       opts.onBeforeStep?.(step, index);
       opts.onStep?.(step, index);
-      placeSpotlight(step.target || null);
-      applyPerformance(step);
-      typeLine(step.line || "");
+      // Clear stale text immediately; typing restarts once the spotlight lands.
+      clearInterval(typeTimer);
+      textEl.textContent = "";
+      // Defer typing + pose until the spotlight is actually placed so the
+      // text doesn't start before the user can see what it's referring to.
+      placeSpotlight(step.target || null, () => {
+        applyPerformance(step);
+        typeLine(step.line || "");
+        onReady && onReady();
+      });
     }
 
     function next() {
@@ -1044,6 +1075,9 @@
     function start() {
       if (destroyed) return;
       root.classList.remove("sg-done");
+      // Keep stage + spotlight invisible until fully positioned + typing.
+      stage.style.opacity = "0";
+      spotlight.style.visibility = "hidden";
       root.hidden = false;
       document.body.classList.add("sg-active");
       canvasWrap.classList.remove("sg-exit");
@@ -1051,10 +1085,13 @@
       lastCanvasW = 0;
       lastCanvasH = 0;
       if (isMobile()) placeMobileDefault();
-      // Un-hiding changes layout; re-fit bust after CSS paints
       afterLayout(() => {
         syncCanvasSize(true);
-        showStep(0);
+        showStep(0, () => {
+          // Everything is positioned and typing has started — reveal.
+          spotlight.style.visibility = "";
+          stage.style.opacity = "";
+        });
       });
       opts.onStart?.();
     }
@@ -1104,14 +1141,30 @@
     try {
       await initModel();
     } catch (err) {
-      // Model failed to load — clean up so we don't leak a dead overlay
       try {
         app?.destroy(true);
       } catch (_) {}
       app = null;
       if (opts.keyboard) document.removeEventListener("keydown", onKey);
-      root.remove();
-      throw err;
+      // Show a visible error instead of silently dying
+      const isMoc2 = /\.moc[^3]|\.moc"/.test(JSON.stringify(err));
+      const hint = opts.cubism === 4 && isMoc2
+        ? " This looks like a Cubism 2 model (.moc) — try cubism: 2."
+        : opts.cubism === 2 && !isMoc2
+        ? " This looks like a Cubism 4 model (.moc3) — try cubism: 4."
+        : "";
+      const msg = `Model failed to load.${hint}`;
+      statusEl.textContent = msg;
+      statusEl.style.cssText = "color:#f87171;font-size:0.8rem;padding:0.5rem;text-align:center;";
+      root.hidden = false;
+      stage.style.opacity = "1";
+      console.error("ShivamGuide:", err, hint);
+      return {
+        start() {}, next() {}, prev() {}, goTo() {}, replayPose() {},
+        end() {}, destroy() { root.remove(); },
+        getIndex: () => -1, isActive: () => false,
+        get root() { return root; },
+      };
     }
 
     const api = {

@@ -70,6 +70,8 @@ export interface ShivamGuideOptions {
   /** Show a step progress bar in the dialogue card (default false) */
   showProgress?: boolean;
   lipSync?: boolean;
+  /** Cubism SDK version: 2 for .moc models, 4 for .moc3 models (default 4) */
+  cubism?: 2 | 4;
   /** Auto-inject Cubism/Pixi CDN scripts (default true) */
   loadPeers?: boolean;
   mount?: HTMLElement | null;
@@ -79,7 +81,7 @@ export interface ShivamGuideOptions {
   // --- Customization ---
   /** Color / font overrides applied as CSS variables on the root */
   theme?: ShivamGuideTheme | null;
-  /** Typewriter speed in ms per character (default 18; 0 = instant) */
+  /** Typewriter speed in ms per character (default 32; 0 = instant) */
   typeSpeedMs?: number;
   /** Spotlight padding around the target in px (default 12) */
   spotlightPadding?: number;
