@@ -1,6 +1,6 @@
 {
   "name": "shivam-guide",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "description": "ShivamGuide — drop-in Live2D onboarding tour (spotlight, dialogue, poses) for any website or React/Next app.",
   "license": "MIT",
   "type": "module",

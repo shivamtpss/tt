@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" fill="none">
+  <!-- Casino dealer character - wink expression -->
+  <!-- Body / Suit -->
+  <path d="M120 340 L200 280 L280 340 L300 600 L100 600Z" fill="#1a1a2e"/>
+  <!-- Shirt -->
+  <path d="M160 310 L200 280 L240 310 L230 400 L170 400Z" fill="#f0f0f0"/>
+  <!-- Tie -->
+  <path d="M195 310 L205 310 L208 380 L200 395 L192 380Z" fill="#c9a227"/>
+  <ellipse cx="200" cy="308" rx="8" ry="6" fill="#b8941e"/>
+  <!-- Lapels -->
+  <path d="M160 310 L120 340 L140 440 L170 400Z" fill="#222244"/>
+  <path d="M240 310 L280 340 L260 440 L230 400Z" fill="#222244"/>
+  <!-- Vest -->
+  <path d="M170 400 L175 500 L200 520 L225 500 L230 400Z" fill="#2a2a4a"/>
+  <circle cx="200" cy="420" r="4" fill="#c9a227"/>
+  <circle cx="200" cy="455" r="4" fill="#c9a227"/>
+  <circle cx="200" cy="490" r="4" fill="#c9a227"/>
+  <!-- Neck -->
+  <rect x="185" y="250" width="30" height="40" rx="8" fill="#d4a574"/>
+  <!-- Head -->
+  <ellipse cx="200" cy="210" rx="65" ry="75" fill="#d4a574"/>
+  <!-- Hair -->
+  <path d="M135 200 Q135 120 200 110 Q265 120 265 200 Q260 160 200 155 Q140 160 135 200Z" fill="#2c1810"/>
+  <path d="M135 200 Q130 220 135 240 Q140 220 140 200Z" fill="#2c1810"/>
+  <path d="M265 200 Q270 220 265 240 Q260 220 260 200Z" fill="#2c1810"/>
+  <!-- Left eye - open -->
+  <ellipse cx="178" cy="205" rx="10" ry="12" fill="white"/>
+  <circle cx="180" cy="207" r="6" fill="#2c1810"/>
+  <circle cx="182" cy="205" r="2.5" fill="white"/>
+  <!-- Right eye - winking (closed) -->
+  <path d="M212 205 Q222 198 232 205" stroke="#2c1810" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Eyebrows -->
+  <path d="M165 188 Q178 182 192 188" stroke="#2c1810" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M208 188 Q222 182 235 188" stroke="#2c1810" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <!-- Nose -->
+  <path d="M198 220 Q200 230 202 220" stroke="#b8935f" stroke-width="2" fill="none"/>
+  <!-- Big grin -->
+  <path d="M175 238 Q200 262 225 238" stroke="#8b5e3c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M180 240 Q200 255 220 240" fill="#fff" opacity="0.7"/>
+  <!-- Cheeks blush - more pronounced -->
+  <ellipse cx="160" cy="230" rx="14" ry="8" fill="#e8a0a0" opacity="0.45"/>
+  <ellipse cx="240" cy="230" rx="14" ry="8" fill="#e8a0a0" opacity="0.45"/>
+  <!-- Arms -->
+  <path d="M120 340 Q80 400 90 480 Q95 500 110 490" stroke="#1a1a2e" stroke-width="40" fill="none" stroke-linecap="round"/>
+  <path d="M280 340 Q320 400 310 480 Q305 500 290 490" stroke="#1a1a2e" stroke-width="40" fill="none" stroke-linecap="round"/>
+  <!-- Hands -->
+  <circle cx="108" cy="488" r="18" fill="#d4a574"/>
+  <circle cx="292" cy="488" r="18" fill="#d4a574"/>
+  <!-- Cards - fanned out in right hand -->
+  <g transform="translate(285, 460) rotate(-20)">
+    <rect x="-18" y="-25" width="36" height="50" rx="4" fill="white" stroke="#ccc" stroke-width="1"/>
+    <text x="0" y="-5" text-anchor="middle" font-size="18" font-family="serif" fill="#c41e3a">A</text>
+    <text x="0" y="15" text-anchor="middle" font-size="14" fill="#c41e3a">`</text>
+  </g>
+  <g transform="translate(295, 455) rotate(-5)">
+    <rect x="-18" y="-25" width="36" height="50" rx="4" fill="#f8f8f8" stroke="#ccc" stroke-width="1"/>
+    <text x="0" y="-5" text-anchor="middle" font-size="18" font-family="serif" fill="#1a1a2e">K</text>
+    <text x="0" y="15" text-anchor="middle" font-size="14" fill="#1a1a2e">c</text>
+  </g>
+  <!-- Card in left hand -->
+  <g transform="translate(100, 465) rotate(10)">
+    <rect x="-16" y="-22" width="32" height="44" rx="4" fill="white" stroke="#ccc" stroke-width="1"/>
+    <text x="0" y="-4" text-anchor="middle" font-size="16" font-family="serif" fill="#c41e3a">Q</text>
+    <text x="0" y="13" text-anchor="middle" font-size="12" fill="#c41e3a">e</text>
+  </g>
+  <!-- Pocket square -->
+  <path d="M248 355 L260 345 L268 360 L255 365Z" fill="#c9a227"/>
+</svg>

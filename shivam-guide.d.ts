@@ -1,5 +1,5 @@
 /**
- * ShivamGuide — TypeScript definitions
+ * ShivamGuide — TypeScript definitions (engine-agnostic)
  * Runtime attaches to window.ShivamGuide via the IIFE script.
  */
 
@@ -20,121 +20,107 @@ export type ShivamGuideFace =
   | false
   | null;
 
-/** Describes a single motion discovered from the loaded model. */
+export type ShivamGuideEngine = "live2d" | "photo" | "rive" | "lottie";
+
 export interface ShivamGuideMotionEntry {
   group: string;
   index: number;
-  /** Derived from the filename (e.g. "Touch Dere1") */
   name: string;
   file: string;
 }
 
-/** Describes a single expression discovered from the loaded model. */
 export interface ShivamGuideExpressionEntry {
   index: number;
-  /** Derived from the definition name (e.g. "f03") */
   name: string;
   file: string;
 }
 
 export interface ShivamGuideStep {
-  /** CSS selector for spotlight, or omit / null for no highlight */
   target?: string | null;
-  /** Dialogue line */
   line: string;
   nextLabel?: string;
-  /**
-   * Motion to play. Accepts:
-   * - number: flat index into discovered motions catalog
-   * - "group:index": e.g. "tap:2"
-   * - motion name: e.g. "Touch Dere1" (matched from filename)
-   * - { group, index }: explicit object
-   */
   pose?: number | string | { group: string; index: number };
-  /** Label override for the POSE tag in the dialogue */
   poseName?: string;
-  /**
-   * Expression to apply. Accepts:
-   * - number: expression index
-   * - string: expression name (e.g. "f03")
-   */
   expression?: number | string;
-  /** Built-in face accent */
   face?: ShivamGuideFace;
-  /** Advance when the highlighted target is tapped (overrides advanceOnClick) */
   waitForClick?: boolean;
   id?: string;
 }
 
-/** Colors / fonts — any CSS color or gradient string. */
 export interface ShivamGuideTheme {
   accent?: string;
   ring?: string;
   dim?: string;
-  /** Speaker label + progress bar color */
   speaker?: string;
   speakerColor?: string;
   font?: string;
-  /** Dialogue card background (color or gradient) */
   dialogueBg?: string;
-  /** Dialogue text color */
   textColor?: string;
-  /** Primary button background (color or gradient) */
   primary?: string;
   primaryText?: string;
-  /** Spotlight corner radius, e.g. "14px" */
   radius?: string;
 }
 
 export interface ShivamGuideOptions {
-  modelUrl: string;
+  /** Character engine (default "live2d") */
+  engine?: ShivamGuideEngine;
+
+  // --- Live2D engine ---
+  /** Live2D model.json URL (required for engine:"live2d") */
+  modelUrl?: string;
+  /** Cubism SDK version: 2 for .moc, 4 for .moc3 (default 4) */
+  cubism?: 2 | 4;
+  /** Auto-inject Cubism/Pixi CDN scripts (default true) */
+  loadPeers?: boolean;
+
+  // --- Photo engine ---
+  /** Main photo URL (required for engine:"photo") */
+  photoUrl?: string;
+  /** Map of expression name to image URL, e.g. { smile: "/me-smile.png" } */
+  photos?: Record<string, string> | null;
+
+  // --- Rive engine ---
+  /** .riv file URL (required for engine:"rive") */
+  riveUrl?: string;
+  /** State machine name(s) to auto-play */
+  riveStateMachine?: string | string[] | null;
+
+  // --- Lottie engine ---
+  /** Lottie JSON URL (required for engine:"lottie") */
+  lottieUrl?: string;
+  /** Named segments: { idle: [120, 240], wave: [0, 30] } or { idle: { start: 120, end: 240 } } */
+  lottieSegments?: Record<string, { start: number; end: number } | [number, number]> | null;
+  /** Frame number where the idle loop starts. The intro (frame 0 → lottieIdleFrom) plays once, then only the idle portion loops. */
+  lottieIdleFrom?: number | null;
+
+  // --- Common ---
   speaker?: string;
   steps: ShivamGuideStep[];
   poses?: ShivamGuidePose[];
   autoStart?: boolean;
   showPoseReplay?: boolean;
   showSkip?: boolean;
-  /** Show a step progress bar in the dialogue card (default false) */
   showProgress?: boolean;
   lipSync?: boolean;
-  /** Cubism SDK version: 2 for .moc models, 4 for .moc3 models (default 4) */
-  cubism?: 2 | 4;
-  /** Auto-inject Cubism/Pixi CDN scripts (default true) */
-  loadPeers?: boolean;
   mount?: HTMLElement | null;
   storageKey?: string | null;
   zIndex?: number;
 
   // --- Customization ---
-  /** Color / font overrides applied as CSS variables on the root */
   theme?: ShivamGuideTheme | null;
-  /** Typewriter speed in ms per character (default 32; 0 = instant) */
   typeSpeedMs?: number;
-  /** Spotlight padding around the target in px (default 12) */
   spotlightPadding?: number;
-  /** Spotlight corner radius in px */
   spotlightRadius?: number | null;
-  /** Enable arrow/enter/escape keyboard controls (default true) */
   keyboard?: boolean;
-  /** Let users advance by tapping the highlighted target (default false) */
   advanceOnClick?: boolean;
-  /** Hint text shown when a step waits for a click */
   clickHint?: string;
-  /** "auto" (respect OS), true (always reduce), or false (never) */
   reduceMotion?: "auto" | boolean;
-  /** Multiplier for the character size on phones (default 1) */
   mobileScale?: number;
-  /** Multiplier for the character size on desktop (default 1) */
   desktopScale?: number;
-  /** Vertical anchor for the model on desktop (default 0.62; higher = lower on canvas) */
   modelAnchorY?: number;
-  /** Vertical anchor for the model on mobile (default 0.44) */
   mobileAnchorY?: number;
-  /** How much to oversize the model on mobile for bust crop (default 2.45) */
   mobileModelScale?: number;
-  /** Log discovered motions/expressions to console on load (default false) */
   debug?: boolean;
-  /** Button label overrides */
   skipLabel?: string;
   doneLabel?: string;
   nextLabel?: string | null;
@@ -146,7 +132,6 @@ export interface ShivamGuideOptions {
   onBeforeStep?: (step: ShivamGuideStep, index: number) => void;
   onComplete?: () => void;
   onSkip?: () => void;
-  /** Fires after complete OR skip; arg is true when completed */
   onEnd?: (completed: boolean) => void;
 }
 
@@ -163,25 +148,23 @@ export interface ShivamGuideTour {
   isActive(): boolean;
   readonly root?: HTMLElement;
   readonly model?: unknown;
-  /** All motions discovered from the loaded model */
   readonly motions: ShivamGuideMotionEntry[];
-  /** All expressions discovered from the loaded model */
   readonly expressions: ShivamGuideExpressionEntry[];
+  readonly engine: ShivamGuideEngine;
 }
 
 export interface ShivamGuideStatic {
   create(options: ShivamGuideOptions): Promise<ShivamGuideTour>;
-  ensurePeers(): Promise<void>;
+  ensurePeers(ver?: 2 | 4): Promise<void>;
   DEFAULT_POSES: ShivamGuidePose[];
 }
 
 declare global {
   interface Window {
     ShivamGuide: ShivamGuideStatic;
-    PIXI?: {
-      live2d?: unknown;
-      Application?: unknown;
-    };
+    PIXI?: { live2d?: unknown; Application?: unknown };
+    rive?: unknown;
+    lottie?: unknown;
   }
 }
 

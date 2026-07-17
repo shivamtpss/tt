@@ -152,7 +152,8 @@ body.sg-active {
   position: relative;
   width: 100%;
   height: min(260px, 38vh);
-  overflow: hidden; /* crop model inside the box */
+  overflow: hidden;
+  background: transparent;
   filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55));
   transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
@@ -438,6 +439,60 @@ body.sg-active {
   display: none;
 }
 
+/* ── Photo engine ──────────────────────────────────────────────── */
+
+.sg-photo-canvas {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sg-photo-character {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
+  animation: sg-photo-idle 3s ease-in-out infinite;
+}
+
+.sg-photo-character.sg-photo-talk {
+  animation: sg-photo-idle 3s ease-in-out infinite, sg-photo-talk 0.25s ease-in-out infinite alternate;
+}
+
+@keyframes sg-photo-idle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes sg-photo-talk {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(1.015); }
+}
+
+/* ── Rive engine ───────────────────────────────────────────────── */
+
+.sg-rive-canvas {
+  display: block;
+  background: transparent !important;
+}
+
+/* ── Lottie engine ─────────────────────────────────────────────── */
+
+.sg-lottie-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sg-lottie-container svg {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* Respect users who ask for less motion */
 @media (prefers-reduced-motion: reduce) {
   .sg-spotlight,
@@ -450,6 +505,9 @@ body.sg-active {
   .sg-caret,
   .sg-stage.sg-pop .sg-canvas,
   .sg-tag {
+    animation: none !important;
+  }
+  .sg-photo-character {
     animation: none !important;
   }
 }
