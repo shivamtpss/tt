@@ -1,8 +1,15 @@
 # ShivamGuide
 
-**ShivamGuide** is a drop-in **Live2D character onboarding tour** for any website.
+**ShivamGuide** is a drop-in **character onboarding tour** for any website.
 
-It highlights UI with a spotlight, walks a Live2D model over to each target, shows dialogue, plays poses/expressions, and cleans up when done.
+It highlights UI with a spotlight, shows an animated character next to each target, plays dialogue with a typewriter effect, and cleans up when done. Supports four character engines:
+
+| Engine | Description | Dependencies | License |
+|--------|-------------|-------------|---------|
+| **live2d** | Full Live2D models with motions, expressions, lip sync | PixiJS + Cubism SDK (CDN auto-loaded) | Live2D SDK license |
+| **rive** | Interactive Rive animations with state machines | @rive-app/canvas (CDN auto-loaded) | Free tier (generous) |
+| **lottie** | Lottie animations from After Effects | lottie-web (CDN auto-loaded) | MIT (fully free) |
+| **photo** | Static image with CSS idle animation | None | Fully yours |
 
 | Works with | Notes |
 |------------|--------|
@@ -51,6 +58,61 @@ import type { ShivamGuideStep } from "shivam-guide";
 ```
 
 Global (script tag): **`window.ShivamGuide`**
+
+---
+
+## Engine quick start
+
+### Photo engine (zero dependencies, fully free)
+
+```js
+const tour = await ShivamGuide.create({
+  engine: "photo",
+  photoUrl: "/my-photo.png",                          // cutout PNG recommended
+  photos: { smile: "/me-smile.png", think: "/me-think.png" },
+  speaker: "Shivam",
+  steps: [
+    { target: "#hero", line: "Welcome!", expression: "smile" },
+    { target: "#cta", line: "Tap here.", expression: "think", nextLabel: "Done" },
+  ],
+});
+```
+
+### Rive engine (interactive animations)
+
+```js
+const tour = await ShivamGuide.create({
+  engine: "rive",
+  riveUrl: "/character.riv",
+  speaker: "Buddy",
+  steps: [
+    { target: "#about", line: "Let me show you around." },
+  ],
+});
+```
+
+### Lottie engine (After Effects animations)
+
+```js
+const tour = await ShivamGuide.create({
+  engine: "lottie",
+  lottieUrl: "/animation.json",
+  speaker: "Astro",
+  steps: [
+    { target: "#hero", line: "I'm a Lottie animation!" },
+  ],
+});
+```
+
+### Live2D engine (default, backward compatible)
+
+```js
+const tour = await ShivamGuide.create({
+  engine: "live2d",   // or just omit — it's the default
+  modelUrl: "https://…/model.json",
+  steps: [{ target: "#hero", line: "Hello!" }],
+});
+```
 
 ---
 
@@ -292,8 +354,15 @@ Each item in `steps`:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `modelUrl` | (required for `create`) | Live2D `model.json` URL (Cubism 2 or 4) |
+| `engine` | `"live2d"` | Character engine: `"live2d"` / `"photo"` / `"rive"` / `"lottie"` |
+| `modelUrl` | — | Live2D `model.json` URL (required for `engine:"live2d"`) |
 | `cubism` | `4` | SDK version: `2` for `.moc` models, `4` for `.moc3` models |
+| `photoUrl` | — | Main photo/image URL (required for `engine:"photo"`) |
+| `photos` | `null` | Map of expression name to image URL: `{ smile: "/smile.png" }` |
+| `riveUrl` | — | .riv file URL (required for `engine:"rive"`) |
+| `riveStateMachine` | `null` | Rive state machine name(s) to auto-play |
+| `lottieUrl` | — | Lottie JSON URL (required for `engine:"lottie"`) |
+| `lottieSegments` | `null` | Named segments: `{ idle: { start: 0, end: 30 } }` |
 | `speaker` | `"Guide"` | Name in the bubble |
 | `steps` | — | Tour steps (required) |
 | `autoStart` | `true` | Start after model loads |
@@ -435,6 +504,7 @@ tour.isActive();
 tour.getIndex();
 tour.motions;      // discovered motion catalog
 tour.expressions;  // discovered expression catalog
+tour.engine;       // "live2d" | "photo" | "rive" | "lottie"
 
 await ShivamGuide.ensurePeers(); // optional preload
 ```
@@ -489,7 +559,12 @@ ShivamGuide/
   shivam-guide.css     # styles
   shivam-guide.d.ts    # TypeScript types
   react.js / react.d.ts
-  example.html         # local smoke test
+  example.html         # desktop photo-engine tour
+  example-mobile.html  # mobile photo-engine tour
+  example-photo.html   # casino photo-engine example
+  example-photo-showcase.html # large face + expression playground
+  example-cubism2.html # legacy Cubism 2 compatibility
+  assets/              # local example character assets
   package.json
   README.md
 ```

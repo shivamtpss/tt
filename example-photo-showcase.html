@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShivamGuide — Photo Character Studio</title>
+  <link rel="stylesheet" href="./shivam-guide.css" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #090c13;
+      --panel: #111725;
+      --panel-2: #171f30;
+      --line: rgba(255, 255, 255, 0.09);
+      --gold: #d5ae55;
+      --gold-2: #f1d58f;
+      --text: #eef3fb;
+      --muted: #93a0b5;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 5%, rgba(93, 64, 150, 0.2), transparent 31rem),
+        radial-gradient(circle at 92% 12%, rgba(213, 174, 85, 0.12), transparent 28rem),
+        var(--page);
+    }
+
+    button { font: inherit; }
+
+    .shell {
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 2.5rem 0 5rem;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+      gap: 1.5rem;
+      align-items: stretch;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-copy,
+    .live-preview,
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(23, 31, 48, 0.96), rgba(12, 17, 28, 0.96));
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+    }
+
+    .hero-copy {
+      padding: clamp(1.5rem, 4vw, 3.5rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 0.7rem;
+      color: var(--gold);
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 13ch;
+      font-size: clamp(2.2rem, 6vw, 4.5rem);
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      max-width: 58ch;
+      margin: 1.2rem 0 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      min-height: 46px;
+      padding: 0.72rem 1.1rem;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 750;
+      transition: transform 160ms ease, filter 160ms ease, border-color 160ms ease;
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+    .btn:disabled { cursor: wait; opacity: 0.6; transform: none; }
+
+    .btn-primary {
+      color: #151006;
+      background: linear-gradient(135deg, var(--gold-2), var(--gold));
+      box-shadow: 0 10px 28px rgba(213, 174, 85, 0.2);
+    }
+
+    .btn-secondary {
+      color: var(--text);
+      border-color: var(--line);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .live-preview {
+      position: relative;
+      min-height: 29rem;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      isolation: isolate;
+    }
+
+    .live-preview::before {
+      content: "";
+      position: absolute;
+      inset: 12% 13% 6%;
+      z-index: -1;
+      border-radius: 50% 50% 42% 42%;
+      background: radial-gradient(circle, rgba(213, 174, 85, 0.18), transparent 66%);
+    }
+
+    .live-preview img {
+      width: 100%;
+      height: 100%;
+      max-height: 31rem;
+      object-fit: contain;
+      object-position: center bottom;
+      filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.35));
+      transition: opacity 160ms ease, transform 240ms ease;
+    }
+
+    .live-preview:hover img { transform: translateY(-4px) scale(1.015); }
+
+    .preview-badge {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      padding: 0.45rem 0.7rem;
+      border: 1px solid rgba(213, 174, 85, 0.28);
+      border-radius: 999px;
+      color: var(--gold-2);
+      background: rgba(9, 12, 19, 0.76);
+      backdrop-filter: blur(8px);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .panel {
+      padding: clamp(1.1rem, 3vw, 1.6rem);
+      margin-top: 1.5rem;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: clamp(1.25rem, 3vw, 1.75rem);
+    }
+
+    .panel-head p {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .character-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.8rem;
+    }
+
+    .character-card {
+      position: relative;
+      min-width: 0;
+      padding: 0;
+      overflow: hidden;
+      text-align: left;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.025);
+      transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+    }
+
+    .character-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(213, 174, 85, 0.35);
+    }
+
+    .character-card[aria-pressed="true"] {
+      border-color: var(--gold);
+      background: rgba(213, 174, 85, 0.08);
+      box-shadow: inset 0 0 0 1px rgba(213, 174, 85, 0.18);
+    }
+
+    .character-art {
+      height: 12rem;
+      padding: 0.75rem 0.75rem 0;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+        radial-gradient(circle at center bottom, rgba(213, 174, 85, 0.12), transparent 65%);
+    }
+
+    .character-art img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      object-position: center bottom;
+    }
+
+    .character-meta { padding: 0.85rem; }
+    .character-meta strong { display: block; font-size: 0.92rem; }
+    .character-meta span { display: block; margin-top: 0.2rem; color: var(--muted); font-size: 0.76rem; }
+
+    .expression-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .expression-card {
+      padding: 0.65rem;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.025);
+      transition: border-color 160ms ease, transform 160ms ease;
+    }
+
+    .expression-card:hover,
+    .expression-card[aria-pressed="true"] {
+      transform: translateY(-2px);
+      border-color: rgba(213, 174, 85, 0.6);
+    }
+
+    .expression-card img {
+      width: 100%;
+      aspect-ratio: 1;
+      display: block;
+      object-fit: contain;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .expression-card span {
+      display: block;
+      margin-top: 0.5rem;
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .demo-layout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.9rem;
+    }
+
+    .feature {
+      min-height: 12rem;
+      padding: 1.2rem;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+    }
+
+    .feature-icon {
+      display: grid;
+      width: 2.4rem;
+      height: 2.4rem;
+      place-items: center;
+      border-radius: 10px;
+      color: #151006;
+      background: var(--gold);
+      font-weight: 900;
+    }
+
+    .feature h3 { margin: 1rem 0 0.5rem; font-size: 1rem; }
+    .feature p { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.55; }
+
+    .custom-note {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px dashed rgba(213, 174, 85, 0.35);
+      border-radius: 14px;
+      color: var(--muted);
+      background: rgba(213, 174, 85, 0.045);
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
+    .custom-note code { color: var(--gold-2); }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .live-preview { min-height: 25rem; }
+      .character-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .expression-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 1rem, 1180px); padding-top: 0.5rem; }
+      .hero-copy, .live-preview, .panel { border-radius: 18px; }
+      .hero-copy { padding: 1.3rem; }
+      .live-preview { min-height: 21rem; }
+      .character-art { height: 9.5rem; }
+      .expression-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .demo-layout { grid-template-columns: 1fr; }
+      .panel-head, .custom-note { align-items: stretch; flex-direction: column; }
+      .panel-head .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Photo engine playground</p>
+        <h1 id="showcase-title">One guide, many personalities.</h1>
+        <p class="lead">
+          Pick a face, try dramatic eyebrows and funny expressions, then launch a full guided tour.
+          The preview is intentionally large so you can judge image quality, cropping, and expression changes.
+        </p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" type="button" id="start-tour">Start big showcase tour</button>
+          <button class="btn btn-secondary" type="button" id="randomize">Surprise me</button>
+        </div>
+      </div>
+
+      <div class="live-preview" id="live-preview">
+        <span class="preview-badge" id="preview-badge">Ace · Friendly</span>
+        <img id="preview-image" alt="Selected guide character preview" />
+      </div>
+    </section>
+
+    <section class="panel" id="faces">
+      <div class="panel-head">
+        <div>
+          <h2>Choose a character</h2>
+          <p>Different seeds, face shapes, hair, eyebrows, and personality.</p>
+        </div>
+      </div>
+      <div class="character-grid" id="character-grid"></div>
+    </section>
+
+    <section class="panel" id="expressions">
+      <div class="panel-head">
+        <div>
+          <h2>Expression wardrobe</h2>
+          <p>Each tour step can swap to another image using the step’s <code>expression</code> value.</p>
+        </div>
+        <button class="btn btn-secondary" type="button" id="cycle-expression">Cycle expressions</button>
+      </div>
+      <div class="expression-grid" id="expression-grid"></div>
+    </section>
+
+    <section class="panel" id="tour-targets">
+      <div class="panel-head">
+        <div>
+          <h2>Real tour targets</h2>
+          <p>The guide will spotlight these cards while changing its face.</p>
+        </div>
+      </div>
+      <div class="demo-layout">
+        <article class="feature" id="feature-welcome">
+          <span class="feature-icon">1</span>
+          <h3>Friendly welcome</h3>
+          <p>Start with a confident smile or wink to make onboarding feel human.</p>
+        </article>
+        <article class="feature" id="feature-help">
+          <span class="feature-icon">2</span>
+          <h3>Helpful explanation</h3>
+          <p>Use a thoughtful eyebrow and quieter expression for detailed instructions.</p>
+        </article>
+        <article class="feature" id="feature-action">
+          <span class="feature-icon">3</span>
+          <h3>Strong call to action</h3>
+          <p>Finish with a funny, excited face and an action-focused button label.</p>
+        </article>
+      </div>
+      <div class="custom-note" id="own-photo">
+        <span>
+          Your own photo works the same way: use transparent PNG/WebP cutouts such as
+          <code>me-default.webp</code>, <code>me-smile.webp</code>, and <code>me-think.webp</code>.
+        </span>
+        <button class="btn btn-primary" type="button" id="replay-tour">Replay tour</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="./shivam-guide.js"></script>
+  <script>
+    (() => {
+      const BASE = "https://api.dicebear.com/9.x/adventurer/svg";
+
+      const characters = [
+        { id: "ace", name: "Ace", note: "Friendly casino host", seed: "CasinoAce", skin: "f2d3b1", hair: "0e0e0e" },
+        { id: "lucky", name: "Lucky", note: "Big eyebrows, playful grin", seed: "LuckyBrows", skin: "ecad80", hair: "6a4e35" },
+        { id: "ruby", name: "Ruby", note: "Confident VIP host", seed: "RubyRoyal", skin: "f2d3b1", hair: "8b3a3a" },
+        { id: "professor", name: "Professor Odds", note: "Thoughtful game expert", seed: "ProfessorOdds", skin: "d08b5b", hair: "3b3024" },
+        { id: "mischief", name: "Mischief", note: "Funny and expressive", seed: "MischiefMaker", skin: "ecad80", hair: "9a4eae" },
+        { id: "nova", name: "Nova", note: "Modern product guide", seed: "NovaGuide", skin: "f2d3b1", hair: "245b78" },
+        { id: "captain", name: "Captain", note: "Bold tour leader", seed: "CaptainClick", skin: "d08b5b", hair: "0e0e0e" },
+        { id: "pixel", name: "Pixel", note: "Cheerful tech helper", seed: "PixelPal", skin: "ecad80", hair: "c8a45d" },
+      ];
+
+      const expressions = [
+        { id: "friendly", name: "Friendly", eyes: "variant01", mouth: "variant01", eyebrows: "variant01" },
+        { id: "funny", name: "Funny brows", eyes: "variant12", mouth: "variant20", eyebrows: "variant10" },
+        { id: "wink", name: "Wink", eyes: "variant26", mouth: "variant01", eyebrows: "variant06" },
+        { id: "think", name: "Thinking", eyes: "variant12", mouth: "variant20", eyebrows: "variant13" },
+        { id: "surprised", name: "Surprised", eyes: "variant08", mouth: "variant18", eyebrows: "variant08" },
+        { id: "confident", name: "Confident", eyes: "variant04", mouth: "variant05", eyebrows: "variant04" },
+        { id: "skeptical", name: "Skeptical", eyes: "variant15", mouth: "variant17", eyebrows: "variant11" },
+        { id: "excited", name: "Excited", eyes: "variant03", mouth: "variant10", eyebrows: "variant02" },
+        { id: "calm", name: "Calm", eyes: "variant06", mouth: "variant04", eyebrows: "variant03" },
+        { id: "dramatic", name: "Dramatic", eyes: "variant22", mouth: "variant15", eyebrows: "variant14" },
+      ];
+
+      const grid = document.getElementById("character-grid");
+      const expressionGrid = document.getElementById("expression-grid");
+      const preview = document.getElementById("preview-image");
+      const badge = document.getElementById("preview-badge");
+      const startButton = document.getElementById("start-tour");
+      let characterIndex = 0;
+      let expressionIndex = 0;
+      let tour = null;
+      let cycleTimer = null;
+
+      function avatarUrl(character, expression) {
+        const params = new URLSearchParams({
+          seed: character.seed,
+          backgroundColor: "transparent",
+          skinColor: character.skin,
+          hairColor: character.hair,
+          eyes: expression.eyes,
+          mouth: expression.mouth,
+          eyebrows: expression.eyebrows,
+        });
+        return `${BASE}?${params.toString()}`;
+      }
+
+      function renderCharacters() {
+        grid.innerHTML = characters.map((character, index) => `
+          <button class="character-card" type="button" data-character="${index}" aria-pressed="${index === characterIndex}">
+            <span class="character-art">
+              <img src="${avatarUrl(character, expressions[0])}" alt="${character.name}" loading="lazy" />
+            </span>
+            <span class="character-meta">
+              <strong>${character.name}</strong>
+              <span>${character.note}</span>
+            </span>
+          </button>
+        `).join("");
+      }
+
+      function renderExpressions() {
+        const character = characters[characterIndex];
+        expressionGrid.innerHTML = expressions.map((expression, index) => `
+          <button class="expression-card" type="button" data-expression="${index}" aria-pressed="${index === expressionIndex}">
+            <img src="${avatarUrl(character, expression)}" alt="${character.name} — ${expression.name}" loading="lazy" />
+            <span>${expression.name}</span>
+          </button>
+        `).join("");
+      }
+
+      function updatePreview() {
+        const character = characters[characterIndex];
+        const expression = expressions[expressionIndex];
+        preview.src = avatarUrl(character, expression);
+        badge.textContent = `${character.name} · ${expression.name}`;
+        document.querySelectorAll("[data-character]").forEach((button, index) => {
+          button.setAttribute("aria-pressed", String(index === characterIndex));
+        });
+        document.querySelectorAll("[data-expression]").forEach((button, index) => {
+          button.setAttribute("aria-pressed", String(index === expressionIndex));
+        });
+      }
+
+      function selectCharacter(index) {
+        characterIndex = index;
+        expressionIndex = 0;
+        renderExpressions();
+        updatePreview();
+      }
+
+      function selectExpression(index) {
+        expressionIndex = index;
+        updatePreview();
+      }
+
+      function buildPhotoMap(character) {
+        return Object.fromEntries(expressions.map((expression) => [
+          expression.id,
+          avatarUrl(character, expression),
+        ]));
+      }
+
+      async function createTour(autoStart) {
+        startButton.disabled = true;
+        if (tour) {
+          tour.destroy();
+          tour = null;
+        }
+
+        const character = characters[characterIndex];
+        const photos = buildPhotoMap(character);
+
+        try {
+          tour = await ShivamGuide.create({
+            engine: "photo",
+            photoUrl: photos.friendly,
+            photos,
+            speaker: character.name,
+            autoStart,
+            showProgress: true,
+            typeSpeedMs: 20,
+            desktopScale: 1.28,
+            mobileScale: 1.08,
+            theme: {
+              accent: "rgba(213, 174, 85, 0.92)",
+              speaker: "#d5ae55",
+              primary: "linear-gradient(135deg, #f1d58f, #d5ae55)",
+              "primary-text": "#151006",
+              "dialogue-bg": "linear-gradient(160deg, rgba(23, 31, 48, 0.98), rgba(9, 12, 19, 0.98))",
+              text: "#eef3fb",
+              radius: "18px",
+            },
+            steps: [
+              {
+                target: "#showcase-title",
+                line: `Hi, I'm ${character.name}. One photo engine can support many different character styles — including your own face.`,
+                expression: "friendly",
+                nextLabel: "Show faces",
+              },
+              {
+                target: "#faces",
+                line: "Choose any character here. Each profile uses a different face, hair style, skin tone, and personality.",
+                expression: "wink",
+              },
+              {
+                target: "#expressions",
+                line: "Now the fun part: expression images. Funny eyebrows, winks, skeptical looks, and excited reactions can all be swapped per step.",
+                expression: "funny",
+              },
+              {
+                target: "#feature-help",
+                line: "A thoughtful face works well when the guide is explaining something important or slightly complicated.",
+                expression: "think",
+              },
+              {
+                target: "#feature-action",
+                line: "For the final action, switch to an excited expression so the call to action feels energetic.",
+                expression: "excited",
+                nextLabel: "One more",
+              },
+              {
+                target: "#own-photo",
+                line: "And yes — replace these avatar URLs with photos of yourself. Transparent PNG or WebP cutouts usually look best.",
+                expression: "confident",
+                nextLabel: "Done",
+              },
+            ],
+          });
+          window.photoShowcaseTour = tour;
+        } catch (error) {
+          console.error(error);
+          alert("Could not load the selected avatar. Check your internet connection and try again.");
+        } finally {
+          startButton.disabled = false;
+        }
+      }
+
+      grid.addEventListener("click", (event) => {
+        const card = event.target.closest("[data-character]");
+        if (card) selectCharacter(Number(card.dataset.character));
+      });
+
+      expressionGrid.addEventListener("click", (event) => {
+        const card = event.target.closest("[data-expression]");
+        if (card) selectExpression(Number(card.dataset.expression));
+      });
+
+      document.getElementById("randomize").addEventListener("click", () => {
+        selectCharacter(Math.floor(Math.random() * characters.length));
+        selectExpression(Math.floor(Math.random() * expressions.length));
+      });
+
+      document.getElementById("cycle-expression").addEventListener("click", (event) => {
+        if (cycleTimer) {
+          clearInterval(cycleTimer);
+          cycleTimer = null;
+          event.currentTarget.textContent = "Cycle expressions";
+          return;
+        }
+        event.currentTarget.textContent = "Stop cycling";
+        cycleTimer = setInterval(() => {
+          selectExpression((expressionIndex + 1) % expressions.length);
+        }, 900);
+      });
+
+      startButton.addEventListener("click", () => createTour(true));
+      document.getElementById("replay-tour").addEventListener("click", () => {
+        if (tour) tour.start();
+        else createTour(true);
+      });
+
+      renderCharacters();
+      renderExpressions();
+      updatePreview();
+      createTour(false);
+    })();
+  </script>
+</body>
+</html>

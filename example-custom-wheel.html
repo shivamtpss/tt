@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Custom Casino Wheel — Fully Configurable</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: radial-gradient(ellipse at 50% 20%, #1a1333 0%, #0b0f19 70%);
+      color: #e8eef5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem;
+      overflow-x: hidden;
+    }
+    h1 { font-size: 2rem; letter-spacing: 0.05em; text-align: center; margin-bottom: 0.2rem; }
+    h1 span { color: #c9a227; }
+    .subtitle { color: #8a9bb5; font-size: 0.92rem; margin-bottom: 1.2rem; text-align: center; }
+
+    .wheel-wrapper {
+      position: relative;
+      width: min(440px, 88vw);
+      height: min(440px, 88vw);
+    }
+    .wheel-outer {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, #c9a227 0deg 3deg, #1a1333 3deg 6deg, #c9a227 6deg 9deg, #1a1333 9deg 12deg,
+        #c9a227 12deg 15deg, #1a1333 15deg 345deg,
+        #c9a227 345deg 348deg, #1a1333 348deg 351deg, #c9a227 351deg 354deg, #1a1333 354deg 357deg, #c9a227 357deg);
+      padding: 12px;
+      box-shadow: 0 0 50px rgba(201,162,39,0.3), 0 0 100px rgba(201,162,39,0.1);
+    }
+    .wheel-inner {
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+    }
+    #wheelCanvas {
+      width: 100% !important; height: 100% !important;
+      display: block;
+    }
+
+    .pointer {
+      position: absolute;
+      top: -8px; left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 40px solid #c9a227;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+      z-index: 10;
+    }
+    .pointer::after {
+      content: '';
+      position: absolute;
+      top: -40px; left: -10px;
+      width: 0; height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-top: 24px solid #e8d76a;
+    }
+
+    .center-btn {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #e8d76a, #c9a227 50%, #8b6914);
+      border: 3px solid #e8d76a;
+      color: #1a1333;
+      font-weight: 900;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.3);
+      transition: transform 0.15s;
+      font-family: inherit;
+    }
+    .center-btn:hover { transform: translate(-50%, -50%) scale(1.08); }
+    .center-btn:active { transform: translate(-50%, -50%) scale(0.95); }
+    .center-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .bulbs {
+      position: absolute; inset: -2px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .result {
+      margin-top: 1.2rem;
+      font-size: 1.4rem;
+      font-weight: 800;
+      min-height: 2em;
+      text-align: center;
+      color: #c9a227;
+      text-shadow: 0 0 20px rgba(201,162,39,0.5);
+    }
+
+    .config-section {
+      margin-top: 1.5rem;
+      width: min(500px, 92vw);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(201,162,39,0.15);
+      border-radius: 14px;
+      padding: 1rem 1.2rem;
+    }
+    .config-section h3 { color: #c9a227; font-size: 0.95rem; margin-bottom: 0.7rem; }
+    .segment-row {
+      display: flex; gap: 0.5rem; align-items: center;
+      margin-bottom: 0.4rem;
+    }
+    .segment-row input[type="text"] {
+      flex: 1; padding: 0.45rem 0.6rem;
+      background: #16202e; color: #fff; border: 1px solid #26364a;
+      border-radius: 6px; font-size: 0.85rem; font-family: inherit;
+    }
+    .segment-row input[type="color"] {
+      width: 36px; height: 32px; border: none; border-radius: 4px;
+      cursor: pointer; background: none;
+    }
+    .segment-row button {
+      background: rgba(248,113,113,0.2); color: #f87171;
+      border: 1px solid rgba(248,113,113,0.3); border-radius: 6px;
+      padding: 0.35rem 0.5rem; cursor: pointer; font-size: 0.8rem;
+    }
+    .config-actions {
+      display: flex; gap: 0.5rem; margin-top: 0.6rem; flex-wrap: wrap;
+    }
+    .config-actions button {
+      padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;
+      font-family: inherit; font-weight: 600; font-size: 0.85rem; border: none;
+    }
+    .btn-add { background: rgba(201,162,39,0.15); color: #c9a227; border: 1px solid rgba(201,162,39,0.3) !important; }
+    .btn-apply { background: linear-gradient(135deg, #c9a227, #a8841a); color: #0b0f19; }
+    .btn-random { background: rgba(255,255,255,0.08); color: #8a9bb5; border: 1px solid rgba(255,255,255,0.1) !important; }
+
+    @media (max-width: 500px) {
+      h1 { font-size: 1.4rem; }
+      .center-btn { width: 56px; height: 56px; font-size: 0.7rem; }
+      .pointer { border-left-width: 14px; border-right-width: 14px; border-top-width: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <h1><span>Custom</span> Casino Wheel</h1>
+  <p class="subtitle">Edit segments below, then spin!</p>
+
+  <div class="wheel-wrapper">
+    <div class="wheel-outer">
+      <div class="wheel-inner">
+        <canvas id="wheelCanvas"></canvas>
+      </div>
+    </div>
+    <canvas id="bulbCanvas" class="bulbs"></canvas>
+    <div class="pointer"></div>
+    <button class="center-btn" id="spinBtn">SPIN</button>
+  </div>
+
+  <div class="result" id="result"></div>
+
+  <div class="config-section">
+    <h3>Wheel Segments (edit values & colors)</h3>
+    <div id="segmentList"></div>
+    <div class="config-actions">
+      <button class="btn-add" id="addBtn">+ Add Segment</button>
+      <button class="btn-apply" id="applyBtn">Apply & Redraw</button>
+      <button class="btn-random" id="presetBtn">Casino Preset</button>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_SEGMENTS = [
+      { label: "$50",    color: "#e74c3c" },
+      { label: "$100",   color: "#3498db" },
+      { label: "$200",   color: "#e67e22" },
+      { label: "$500",   color: "#2ecc71" },
+      { label: "$1000",  color: "#9b59b6" },
+      { label: "JACKPOT",color: "#c9a227" },
+      { label: "$75",    color: "#1abc9c" },
+      { label: "$150",   color: "#e84393" },
+      { label: "$300",   color: "#0984e3" },
+      { label: "TRY\nAGAIN", color: "#636e72" },
+    ];
+
+    let segments = JSON.parse(JSON.stringify(DEFAULT_SEGMENTS));
+    let spinning = false;
+    let currentAngle = 0;
+
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const bulbCanvas = document.getElementById("bulbCanvas");
+    const bulbCtx = bulbCanvas.getContext("2d");
+    const spinBtn = document.getElementById("spinBtn");
+    const resultEl = document.getElementById("result");
+    const segmentList = document.getElementById("segmentList");
+
+    function resize() {
+      const parent = canvas.parentElement;
+      const dpr = window.devicePixelRatio || 1;
+      const w = parent.clientWidth;
+      canvas.width = w * dpr;
+      canvas.height = w * dpr;
+      const bw = parent.parentElement.parentElement.clientWidth + 4;
+      bulbCanvas.width = bw * dpr;
+      bulbCanvas.height = bw * dpr;
+      bulbCanvas.style.width = bw + "px";
+      bulbCanvas.style.height = bw + "px";
+      drawWheel();
+      drawBulbs();
+    }
+
+    function drawWheel() {
+      const w = canvas.width;
+      const cx = w / 2, cy = w / 2, r = w / 2 - 4;
+      ctx.clearRect(0, 0, w, w);
+
+      const n = segments.length;
+      const arc = (Math.PI * 2) / n;
+
+      for (let i = 0; i < n; i++) {
+        const angle = currentAngle + i * arc;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, angle, angle + arc);
+        ctx.closePath();
+        ctx.fillStyle = segments[i].color;
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(0,0,0,0.3)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // inner gradient overlay for depth
+        const grad = ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+        grad.addColorStop(0, "rgba(255,255,255,0.12)");
+        grad.addColorStop(0.6, "rgba(255,255,255,0)");
+        grad.addColorStop(1, "rgba(0,0,0,0.2)");
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.restore();
+
+        // text
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle + arc / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#fff";
+        ctx.shadowColor = "rgba(0,0,0,0.6)";
+        ctx.shadowBlur = 4;
+
+        const lines = segments[i].label.split("\n");
+        const fontSize = Math.max(12, Math.min(r * 0.1, 22));
+        ctx.font = `bold ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
+        const lineH = fontSize * 1.15;
+        const totalH = lines.length * lineH;
+        lines.forEach((line, li) => {
+          ctx.fillText(line, r - 18, (li - (lines.length - 1) / 2) * lineH + fontSize * 0.35);
+        });
+        ctx.restore();
+      }
+
+      // center circle
+      const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.16);
+      cGrad.addColorStop(0, "#2a2a4a");
+      cGrad.addColorStop(1, "#0e1622");
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.14, 0, Math.PI * 2);
+      ctx.fillStyle = cGrad;
+      ctx.fill();
+      ctx.strokeStyle = "#c9a227";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    let bulbPhase = 0;
+    function drawBulbs() {
+      const w = bulbCanvas.width;
+      const cx = w / 2, cy = w / 2, r = w / 2 - 6;
+      bulbCtx.clearRect(0, 0, w, w);
+
+      const count = 24;
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2 - Math.PI / 2;
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r;
+        const on = (i + bulbPhase) % 3 !== 0;
+
+        bulbCtx.beginPath();
+        bulbCtx.arc(x, y, w * 0.012, 0, Math.PI * 2);
+        if (on) {
+          bulbCtx.fillStyle = i % 2 === 0 ? "#c9a227" : "#e74c3c";
+          bulbCtx.shadowColor = bulbCtx.fillStyle;
+          bulbCtx.shadowBlur = 10;
+        } else {
+          bulbCtx.fillStyle = "rgba(100,100,100,0.4)";
+          bulbCtx.shadowBlur = 0;
+        }
+        bulbCtx.fill();
+        bulbCtx.shadowBlur = 0;
+      }
+    }
+
+    setInterval(() => {
+      bulbPhase = (bulbPhase + 1) % 3;
+      drawBulbs();
+    }, 400);
+
+    function getWinningSegment() {
+      const n = segments.length;
+      const arc = (Math.PI * 2) / n;
+      const pointerAngle = -Math.PI / 2;
+      let normalizedAngle = ((pointerAngle - currentAngle) % (Math.PI * 2) + Math.PI * 4) % (Math.PI * 2);
+      const idx = Math.floor(normalizedAngle / arc) % n;
+      return segments[idx];
+    }
+
+    function spin() {
+      if (spinning) return;
+      spinning = true;
+      spinBtn.disabled = true;
+      resultEl.textContent = "";
+      resultEl.style.animation = "none";
+
+      const totalRotation = Math.PI * 2 * (5 + Math.random() * 5);
+      const duration = 4000 + Math.random() * 2000;
+      const startAngle = currentAngle;
+      const startTime = performance.now();
+
+      function ease(t) {
+        return 1 - Math.pow(1 - t, 4);
+      }
+
+      function tick() {
+        const elapsed = performance.now() - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        currentAngle = startAngle + totalRotation * ease(t);
+        drawWheel();
+
+        if (t < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          spinning = false;
+          spinBtn.disabled = false;
+          const winner = getWinningSegment();
+          resultEl.innerHTML = `<span style="font-size:0.85em;color:#8a9bb5;">You won</span><br>${winner.label.replace("\n"," ")}`;
+          resultEl.style.animation = "pop 0.5s cubic-bezier(0.22,1,0.36,1)";
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    spinBtn.addEventListener("click", spin);
+
+    // --- Config UI ---
+
+    function renderSegmentList() {
+      segmentList.innerHTML = "";
+      segments.forEach((seg, i) => {
+        const row = document.createElement("div");
+        row.className = "segment-row";
+        row.innerHTML = `
+          <input type="text" value="${seg.label.replace(/\n/g, "\\n")}" data-idx="${i}" class="seg-label" />
+          <input type="color" value="${seg.color}" data-idx="${i}" class="seg-color" />
+          <button data-idx="${i}" class="seg-del">×</button>
+        `;
+        segmentList.appendChild(row);
+      });
+    }
+
+    segmentList.addEventListener("input", (e) => {
+      const idx = parseInt(e.target.dataset.idx);
+      if (e.target.classList.contains("seg-label")) {
+        segments[idx].label = e.target.value.replace(/\\n/g, "\n");
+      }
+      if (e.target.classList.contains("seg-color")) {
+        segments[idx].color = e.target.value;
+      }
+    });
+
+    segmentList.addEventListener("click", (e) => {
+      if (e.target.classList.contains("seg-del") && segments.length > 2) {
+        segments.splice(parseInt(e.target.dataset.idx), 1);
+        renderSegmentList();
+        drawWheel();
+      }
+    });
+
+    document.getElementById("addBtn").addEventListener("click", () => {
+      const colors = ["#e74c3c","#3498db","#2ecc71","#e67e22","#9b59b6","#1abc9c","#e84393","#0984e3"];
+      segments.push({ label: "$" + (Math.floor(Math.random() * 20) * 50 + 50), color: colors[segments.length % colors.length] });
+      renderSegmentList();
+      drawWheel();
+    });
+
+    document.getElementById("applyBtn").addEventListener("click", () => {
+      document.querySelectorAll(".seg-label").forEach((inp) => {
+        segments[parseInt(inp.dataset.idx)].label = inp.value.replace(/\\n/g, "\n");
+      });
+      document.querySelectorAll(".seg-color").forEach((inp) => {
+        segments[parseInt(inp.dataset.idx)].color = inp.value;
+      });
+      drawWheel();
+      resultEl.textContent = "Wheel updated!";
+      setTimeout(() => { if (!spinning) resultEl.textContent = ""; }, 1500);
+    });
+
+    document.getElementById("presetBtn").addEventListener("click", () => {
+      segments = JSON.parse(JSON.stringify(DEFAULT_SEGMENTS));
+      renderSegmentList();
+      drawWheel();
+    });
+
+    renderSegmentList();
+    window.addEventListener("resize", resize);
+    resize();
+  </script>
+
+  <style>
+    @keyframes pop {
+      0% { transform: scale(0.7); opacity: 0; }
+      60% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</body>
+</html>

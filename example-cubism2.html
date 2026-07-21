@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShivamGuide — Cubism 2 test</title>
+  <link rel="stylesheet" href="./shivam-guide.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    #cta { padding: 0.75rem 1.25rem; background: #0d7a70; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1 id="brand">Cubism 2 model test</h1>
+  <p>This page uses a Cubism 2 (.moc) model with <code>cubism: 2</code>.</p>
+  <button type="button" id="cta">Primary action</button>
+  <p><button type="button" id="replay">Replay tour</button></p>
+
+  <script src="./shivam-guide.js"></script>
+  <script>
+    (async () => {
+      const tour = await ShivamGuide.create({
+        modelUrl:
+          "https://cdn.jsdelivr.net/gh/evrstr/live2d-widget-models/live2d_evrstr/touma/model.json",
+        cubism: 2,
+        speaker: "Touma",
+        autoStart: true,
+        debug: true,
+        steps: [
+          { target: "#brand", line: "Hello from Cubism 2!", pose: "tap:9", expression: "f07" },
+          { target: "#cta", line: "This references motion by name.", pose: "motion2", expression: "f03", nextLabel: "Done" },
+        ],
+      });
+      window._tour = tour;
+      document.getElementById("replay").onclick = () => tour.start();
+    })();
+  </script>
+</body>
+</html>

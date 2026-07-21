@@ -3,36 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShivamGuide — mobile bottom-target test</title>
+  <title>ShivamGuide — Mobile test (Photo engine)</title>
   <link rel="stylesheet" href="./shivam-guide.css" />
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #0e1622; color: #e8eef5; }
-    h1 { font-size: 1.2rem; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0; padding: 1rem;
+      background: #0e1622; color: #e8eef5;
+    }
+    h1 { font-size: 1.2rem; color: #c9a227; }
     .field { margin: 0.9rem 0; }
     label { display: block; font-size: 0.85rem; margin-bottom: 0.3rem; color: #9fb0c3; }
-    input, select { width: 100%; box-sizing: border-box; padding: 0.7rem; border-radius: 10px; border: 1px solid #26364a; background: #16202e; color: #fff; }
+    input, select {
+      width: 100%; box-sizing: border-box; padding: 0.7rem;
+      border-radius: 10px; border: 1px solid #26364a;
+      background: #16202e; color: #fff;
+    }
     .spacer { height: 60vh; }
-    #brand { padding: 0.5rem 0.75rem; background: #16202e; border-radius: 10px; display: inline-block; }
-    #cta { padding: 0.8rem 1.25rem; background: #0d7a70; color: #fff; border: 0; border-radius: 10px; cursor: pointer; font-size: 1rem; width: 100%; }
-    #footerlink { display: inline-block; margin-top: 1rem; color: #46d4c2; }
+    #brand {
+      padding: 0.5rem 0.75rem;
+      background: linear-gradient(135deg, rgba(201,162,39,0.15), rgba(201,162,39,0.05));
+      border: 1px solid rgba(201,162,39,0.25);
+      border-radius: 10px; display: inline-block;
+    }
+    #cta {
+      padding: 0.8rem 1.25rem;
+      background: linear-gradient(135deg, #c9a227, #a8841a);
+      color: #0b0f19;
+      border: 0; border-radius: 10px; cursor: pointer;
+      font-size: 1rem; width: 100%; font-weight: 700;
+    }
+    #footerlink { display: inline-block; margin-top: 1rem; color: #c9a227; }
     button, a { font-family: inherit; }
-    .btnrow { display:flex; gap:.5rem; }
+    .btnrow { display: flex; gap: 0.5rem; }
+    #replay {
+      padding: 0.5rem 1rem;
+      background: transparent;
+      color: #c9a227;
+      border: 1px solid rgba(201,162,39,0.3);
+      border-radius: 8px; cursor: pointer;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
-  <h1 id="brand">Sign-up form</h1>
-  <div class="field"><label>Name</label><input id="name" placeholder="Jane Doe" /></div>
-  <div class="field"><label>Email</label><input id="email" placeholder="jane@site.com" /></div>
-  <div class="field"><label>Plan</label><select id="plan"><option>Free</option><option>Pro</option></select></div>
+  <h1 id="brand">Casino Registration</h1>
+  <div class="field"><label>Player Name</label><input id="name" placeholder="Jane Doe" /></div>
+  <div class="field"><label>Email</label><input id="email" placeholder="jane@casino.com" /></div>
+  <div class="field"><label>Membership</label><select id="plan"><option>Standard</option><option>Gold</option><option>VIP</option></select></div>
 
   <div class="spacer"></div>
 
-  <div class="field"><label>Address</label><input id="addr" placeholder="123 Street" /></div>
-  <div class="field"><label>Promo code</label><input id="promo" placeholder="SAVE10" /></div>
+  <div class="field"><label>Address</label><input id="addr" placeholder="123 Casino Blvd" /></div>
+  <div class="field"><label>Promo Code</label><input id="promo" placeholder="WELCOME100" /></div>
   <div class="btnrow">
-    <button type="button" id="cta">Create account</button>
+    <button type="button" id="cta">Create Account</button>
   </div>
-  <a href="#" id="footerlink">Terms &amp; privacy (very bottom link)</a>
+  <a href="#" id="footerlink">Terms &amp; Conditions</a>
 
   <p><button type="button" id="replay">Replay tour</button></p>
 
@@ -40,16 +68,29 @@
   <script>
     (async () => {
       const tour = await ShivamGuide.create({
-        modelUrl: "https://cdn.jsdelivr.net/gh/evrstr/live2d-widget-models/live2d_evrstr/natori/model.json",
-        speaker: "Guide",
+        engine: "photo",
+        photoUrl: "https://api.dicebear.com/9.x/adventurer/svg?seed=Casino&backgroundColor=transparent&skinColor=f2d3b1",
+        photos: {
+          think: "https://api.dicebear.com/9.x/adventurer/svg?seed=Casino&backgroundColor=transparent&skinColor=f2d3b1&mouth=variant20&eyes=variant12",
+          wink:  "https://api.dicebear.com/9.x/adventurer/svg?seed=Casino&backgroundColor=transparent&skinColor=f2d3b1&mouth=variant01&eyes=variant26",
+        },
+        speaker: "Dealer",
         autoStart: true,
         showProgress: true,
+        theme: {
+          accent: "rgba(201, 162, 39, 0.9)",
+          speaker: "#c9a227",
+          primary: "linear-gradient(135deg, #c9a227, #a8841a)",
+          "primary-text": "#0b0f19",
+          "dialogue-bg": "linear-gradient(165deg, rgba(20, 27, 45, 0.97), #0e1622)",
+          text: "#e8eef5",
+        },
         steps: [
-          { target: "#brand", line: "Welcome! Let's fill this form out together.", pose: 0, face: "smile" },
-          { target: "#name", line: "Type your name here first.", pose: 1, face: "look" },
-          { target: "#plan", line: "Pick a plan that fits you.", pose: 2, face: "look" },
-          { target: "#cta", line: "This Create account button is near the bottom — the guide must not cover it.", pose: 2, face: "hype" },
-          { target: "#footerlink", line: "And this is the very last link at the bottom of the page.", pose: 8, face: "bye", nextLabel: "Done" },
+          { target: "#brand", line: "Welcome to Royal Casino! Let's get you registered.", expression: "wink" },
+          { target: "#name",  line: "Start by entering your player name here.", expression: "think" },
+          { target: "#plan",  line: "Pick a membership tier — Gold and VIP unlock exclusive perks." },
+          { target: "#cta",   line: "This button sits near the bottom. The guide stays out of its way!", expression: "wink" },
+          { target: "#footerlink", line: "And here's the fine print at the very bottom of the page.", expression: "think", nextLabel: "Done" },
         ],
       });
       document.getElementById("replay").onclick = () => tour.start();

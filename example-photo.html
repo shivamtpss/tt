@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShivamGuide — Casino Dealer (Photo engine)</title>
+  <link rel="stylesheet" href="./shivam-guide.css" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0; padding: 2rem 1rem;
+      background: linear-gradient(145deg, #0b0f19 0%, #141b2d 50%, #0e1622 100%);
+      color: #e8eef5;
+      min-height: 100vh;
+    }
+    .container { max-width: 40rem; margin: 0 auto; }
+    h1 { font-size: 1.6rem; letter-spacing: 0.03em; }
+    h1 span { color: #c9a227; }
+    .subtitle { color: #8a9bb5; margin-top: -0.5rem; }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(201,162,39,0.2);
+      border-radius: 14px;
+      padding: 1.25rem;
+      margin: 1.5rem 0;
+    }
+    .card h3 { margin: 0 0 0.5rem; color: #c9a227; font-size: 1rem; }
+    .card p { margin: 0; color: #9fb0c3; font-size: 0.92rem; line-height: 1.5; }
+    #cta {
+      padding: 0.85rem 1.5rem;
+      background: linear-gradient(135deg, #c9a227, #a8841a);
+      color: #0b0f19;
+      border: 0; border-radius: 10px;
+      cursor: pointer; font-weight: 700; font-size: 1rem;
+      letter-spacing: 0.03em;
+    }
+    #cta:hover { filter: brightness(1.12); }
+    #replay {
+      padding: 0.5rem 1rem;
+      background: transparent;
+      color: #c9a227;
+      border: 1px solid rgba(201,162,39,0.3);
+      border-radius: 8px; cursor: pointer;
+      font-size: 0.85rem; margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="brand">Welcome to <span>Royal Casino</span></h1>
+    <p class="subtitle">Your premium gaming destination</p>
+
+    <div class="card" id="games">
+      <h3>Table Games</h3>
+      <p>Blackjack, Poker, Baccarat &amp; Roulette — all with live dealers ready to deal you in.</p>
+    </div>
+
+    <div class="card" id="vip">
+      <h3>VIP Lounge</h3>
+      <p>Exclusive high-roller tables, personal hosts, and premium rewards for our most valued guests.</p>
+    </div>
+
+    <button type="button" id="cta">Start Playing</button>
+    <p><button type="button" id="replay">Replay tour</button></p>
+  </div>
+
+  <script src="./shivam-guide.js"></script>
+  <script>
+    (async () => {
+      // DiceBear adventurer avatars — cool character style, fully free
+      // To use YOUR OWN face: just replace photoUrl with your photo path:
+      //   photoUrl: "./assets/my-photo.png",
+      const tour = await ShivamGuide.create({
+        engine: "photo",
+        photoUrl: "https://api.dicebear.com/9.x/adventurer/svg?seed=Casino&backgroundColor=transparent&skinColor=f2d3b1",
+        photos: {
+          happy: "https://api.dicebear.com/9.x/adventurer/svg?seed=Casino&backgroundColor=transparent&skinColor=f2d3b1&mouth=variant01&eyes=variant01",
+          think: "https://api.dicebear.com/9.x/adventurer/svg?seed=Casino&backgroundColor=transparent&skinColor=f2d3b1&mouth=variant20&eyes=variant12",
+          wink:  "https://api.dicebear.com/9.x/adventurer/svg?seed=Casino&backgroundColor=transparent&skinColor=f2d3b1&mouth=variant01&eyes=variant26",
+        },
+        speaker: "Dealer",
+        autoStart: true,
+        showProgress: true,
+        theme: {
+          accent: "rgba(201, 162, 39, 0.9)",
+          speaker: "#c9a227",
+          primary: "linear-gradient(135deg, #c9a227, #a8841a)",
+          "primary-text": "#0b0f19",
+          "dialogue-bg": "linear-gradient(165deg, rgba(20, 27, 45, 0.97), #0e1622)",
+          text: "#e8eef5",
+        },
+        steps: [
+          { target: "#brand",  line: "Welcome to Royal Casino! I'll be your dealer tonight. Let me show you around.", expression: "wink" },
+          { target: "#games",  line: "Here are our table games. We've got Blackjack, Poker, and much more waiting for you.", expression: "think" },
+          { target: "#vip",    line: "And this is our exclusive VIP Lounge — reserved for our most distinguished guests." },
+          { target: "#cta",    line: "Ready to try your luck? Hit this button and let the games begin!", expression: "wink", nextLabel: "Deal me in!" },
+        ],
+      });
+      window._tour = tour;
+      document.getElementById("replay").onclick = () => tour.start();
+    })();
+  </script>
+</body>
+</html>

@@ -3,30 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShivamGuide — quick test</title>
+  <title>ShivamGuide — Quick test (Photo engine)</title>
   <link rel="stylesheet" href="./shivam-guide.css" />
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
-    #cta { padding: 0.75rem 1.25rem; background: #0d7a70; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0; padding: 2rem 1rem;
+      background: linear-gradient(145deg, #0b0f19 0%, #141b2d 50%, #0e1622 100%);
+      color: #e8eef5;
+      min-height: 100vh;
+    }
+    .container { max-width: 40rem; margin: 0 auto; }
+    h1 { font-size: 1.6rem; }
+    h1 span { color: #c9a227; }
+    .subtitle { color: #8a9bb5; margin-top: -0.5rem; }
+    #cta {
+      padding: 0.85rem 1.5rem;
+      background: linear-gradient(135deg, #c9a227, #a8841a);
+      color: #0b0f19;
+      border: 0; border-radius: 10px;
+      cursor: pointer; font-weight: 700; font-size: 1rem;
+    }
+    #replay {
+      padding: 0.5rem 1rem;
+      background: transparent;
+      color: #c9a227;
+      border: 1px solid rgba(201,162,39,0.3);
+      border-radius: 8px; cursor: pointer;
+      font-size: 0.85rem; margin-top: 1rem;
+    }
   </style>
 </head>
 <body>
-  <h1 id="brand">ShivamGuide test</h1>
-  <p>Open this file over HTTP (not file://). Or run any static server in this folder.</p>
-  <button type="button" id="cta">Primary action</button>
-  <p><button type="button" id="replay">Replay tour</button></p>
+  <div class="container">
+    <h1 id="brand"><span>ShivamGuide</span> — Quick Test</h1>
+    <p class="subtitle">License-free photo engine with SVG casino dealer character</p>
+    <p>Open this file over HTTP (not file://). Or run any static server in this folder.</p>
+    <button type="button" id="cta">Primary action</button>
+    <p><button type="button" id="replay">Replay tour</button></p>
+  </div>
 
   <script src="./shivam-guide.js"></script>
   <script>
     (async () => {
+      // Use DiceBear avatars — or swap to your own photo:
+      //   photoUrl: "./my-face.jpg",
       const tour = await ShivamGuide.create({
-        modelUrl:
-          "https://cdn.jsdelivr.net/gh/evrstr/live2d-widget-models/live2d_evrstr/natori/model.json",
+        engine: "photo",
+        photoUrl: "https://api.dicebear.com/9.x/adventurer/svg?seed=Shivam&backgroundColor=transparent",
+        photos: {
+          think: "https://api.dicebear.com/9.x/adventurer/svg?seed=Shivam&backgroundColor=transparent&mouth=variant20&eyes=variant12",
+          wink:  "https://api.dicebear.com/9.x/adventurer/svg?seed=Shivam&backgroundColor=transparent&mouth=variant01&eyes=variant26",
+        },
         speaker: "Guide",
         autoStart: true,
+        theme: {
+          accent: "rgba(201, 162, 39, 0.9)",
+          speaker: "#c9a227",
+          primary: "linear-gradient(135deg, #c9a227, #a8841a)",
+          "primary-text": "#0b0f19",
+          "dialogue-bg": "linear-gradient(165deg, rgba(20, 27, 45, 0.97), #0e1622)",
+          text: "#e8eef5",
+        },
         steps: [
-          { target: "#brand", line: "ShivamGuide is alive. Peers loaded themselves.", pose: 0, face: "smile" },
-          { target: "#cta", line: "Point steps at any CSS selector on your page.", pose: 2, face: "look", nextLabel: "Done" },
+          { target: "#brand", line: "ShivamGuide is alive — now fully license-free with the photo engine!", expression: "wink" },
+          { target: "#cta",   line: "Point steps at any CSS selector on your page. Swap in your own photos anytime.", expression: "think", nextLabel: "Done" },
         ],
       });
       document.getElementById("replay").onclick = () => tour.start();
